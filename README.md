@@ -174,5 +174,4 @@ This is a fan-made modding tool and is not affiliated with the developers of STU
 
 ## License
 
-<!-- Choose a license, e.g. MIT: https://choosealicense.com/licenses/mit/ -->
-TBD
+GPL-3.0 license
