@@ -67,7 +67,7 @@ No installation or Python needed.
    ```
    It asks for the content folder on start. You can also pass the folder directly:
    ```bash
-   python xnb_board_tool_v2.py "E:\SteamLibrary\steamapps\common\STUNTBOOST\Content\Models\Resources\Board"
+   python xnb_board_tool_v2.py "Driver:\SteamLibrary\steamapps\common\STUNTBOOST\Content\Models\Resources\Board"
    ```
 
 ### Building the Windows version
@@ -106,6 +106,11 @@ The first four pixels of the texture's top row hold the board's colors:
 | `1, 0` | Under (bottom of the deck) |
 | `2, 0` | Wheels |
 | `3, 0` | Truck |
+
+Example
+
+<img width="325" height="310" alt="Pixel_Colors" src="https://github.com/user-attachments/assets/90afa051-1d06-4415-b6a2-52ab5f04225d" />
+<img width="325" height="310" alt="skateboard_details_colors" src="https://github.com/user-attachments/assets/85bee722-2652-4758-9b08-ab46cb4daffd" />
 
 The tool edits these pixels for you, so you don't need an image editor. Copy produces text like `#d02020, #c8b400, #40c060, #4050c0` that you can share with other players. Paste reads it back.
 
