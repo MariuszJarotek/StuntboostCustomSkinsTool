@@ -4,7 +4,7 @@ A small desktop tool for swapping skateboard textures in **STUNTBOOST** (and oth
 
 Pick a board, drop in any PNG or JPG, choose the board's colors, and the tool writes a game-ready `.xnb` for you. Backups and one-click revert are built in.
 
-<img width="2559" height="1389" alt="StuntboostCustomSkinsTool" src="https://github.com/user-attachments/assets/67c24a55-0810-4332-97b3-b6b20a791e69" />
+![Screenshot of the XNB Board Texture Tool](docs/screenshot.png)
 
 ---
 
@@ -35,7 +35,25 @@ Boards are found automatically as `<name>.xnb` + `<name>Thumbnail.xnb` pairs. If
 
 ## Getting started
 
-### Option A: run the Python script (recommended)
+### Option A: download the Windows version (easiest)
+
+1. Go to [Releases](../../releases) and download `XNB-Board-Tool-v1.0.0-windows.zip`.
+2. Unzip it anywhere, for example to your Desktop.
+3. Open the `XNB Board Tool` folder and run **`XNB Board Tool.exe`**. Keep the `_internal` folder next to it, because the app needs it.
+
+No installation or Python needed.
+
+> **⚠️ Windows SmartScreen / antivirus warnings**
+>
+> The app is not code-signed yet, so on first launch Windows may show **"Windows protected your PC"**. Click **More info → Run anyway**.
+>
+> Some antivirus programs may also flag it. This is a known false positive for Python apps packaged with PyInstaller: thousands of harmless tools share the same launcher, and scanners match on it. The tool contains no network code and doesn't need admin rights; see [Safety](#safety).
+>
+> If you'd rather not run an unsigned app:
+> - check the zip on [VirusTotal](https://www.virustotal.com/) yourself, or
+> - use **Option B** below and run the readable Python source directly. The release is built from exactly this code (see [Building the Windows version](#building-the-windows-version)).
+
+### Option B: run the Python script
 
 1. Install **Python 3.9 or newer** from [python.org](https://www.python.org/downloads/). Keep the "tcl/tk and IDLE" option ticked.
 2. Install the dependencies:
@@ -52,13 +70,19 @@ Boards are found automatically as `<name>.xnb` + `<name>Thumbnail.xnb` pairs. If
    python xnb_board_tool_v2.py "E:\SteamLibrary\steamapps\common\STUNTBOOST\Content\Models\Resources\Board"
    ```
 
-### Option B: build a standalone .exe (Windows)
+### Building the Windows version
+
+You only need this if you want to build the release yourself. It requires Python 3.9+ from python.org on Windows.
 
 1. Put `build_exe.bat` and `build_exe.py` next to `xnb_board_tool_v2.py`.
-2. Double-click `build_exe.bat`.
-3. Your program is at `dist\XNB Board Tool.exe`. It runs without Python installed.
+2. Double-click `build_exe.bat`. It installs PyInstaller, Pillow and tkinterdnd2, then builds the app.
+3. The results are in the `dist` folder:
+   - `dist\XNB Board Tool\`: the app folder
+   - `dist\XNB-Board-Tool-v1.0.0-windows.zip`: the same folder zipped, ready to upload to a GitHub release
 
-> **Note:** the .exe is not code-signed, so Windows SmartScreen or antivirus software may warn about it. This is common for PyInstaller apps. If you'd rather avoid it, use Option A: the script is plain, readable Python.
+To make a single `.exe` instead, run `build_exe.bat --onefile`. Single-file builds are flagged by antivirus much more often, because they unpack themselves to a temp folder on every start. That's why the folder build is the default.
+
+To reduce false positives, the build also skips UPX compression and embeds version information (product name, version, description) in the exe. To release a new version, change `VERSION` at the top of `build_exe.py`.
 
 ## How to use
 
@@ -143,4 +167,5 @@ This is a fan-made modding tool and is not affiliated with the developers of STU
 
 ## License
 
-GPL-3.0 license
+<!-- Choose a license, e.g. MIT: https://choosealicense.com/licenses/mit/ -->
+TBD
