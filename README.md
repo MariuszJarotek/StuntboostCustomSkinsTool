@@ -82,6 +82,8 @@ You only need this if you want to build the release yourself. It requires Python
 
 To make a single `.exe` instead, run `build_exe.bat --onefile`. Single-file builds are flagged by antivirus much more often, because they unpack themselves to a temp folder on every start. That's why the folder build is the default.
 
+For further development:
+
 To reduce false positives, the build also skips UPX compression and embeds version information (product name, version, description) in the exe. To release a new version, change `VERSION` at the top of `build_exe.py`.
 
 ## How to use
