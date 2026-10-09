@@ -4,7 +4,7 @@ A small desktop tool for swapping skateboard textures in **STUNTBOOST** (and oth
 
 Pick a board, drop in any PNG or JPG, choose the board's colors, and the tool writes a game-ready `.xnb` for you. Backups and one-click revert are built in.
 
-![Screenshot of the XNB Board Texture Tool](docs/screenshot.png)
+<img width="2559" height="1389" alt="StuntboostCustomSkinsTool" src="https://github.com/user-attachments/assets/67c24a55-0810-4332-97b3-b6b20a791e69" />
 
 ---
 
@@ -143,5 +143,4 @@ This is a fan-made modding tool and is not affiliated with the developers of STU
 
 ## License
 
-<!-- Choose a license, e.g. MIT: https://choosealicense.com/licenses/mit/ -->
-TBD
+GPL-3.0 license
