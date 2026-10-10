@@ -4,13 +4,13 @@ A small desktop tool for swapping skateboard textures in **STUNTBOOST** (and oth
 
 Pick a board, drop in any PNG or JPG, choose the board's colors, and the tool writes a game-ready `.xnb` for you. Backups and one-click revert are built in.
 
-![Screenshot of the XNB Board Texture Tool](docs/screenshot.png)
+<img width="2559" height="1392" alt="XNB_Board_Texture_Gallery" src="https://github.com/user-attachments/assets/5b1b7a50-3a7f-4d3c-83d9-28e80334977a" />
 
 ---
 
 ## Features
 
-- **Board browser:** lists every board in the content folder with a mini preview and a status marker.
+- **Board browser:** lists every board in the content folder with a mini preview and a status marker or text.
   - 🟢 matches the saved default
   - 🟧 modified
   - ⭕ no default saved yet
@@ -84,7 +84,7 @@ No installation or Python needed.
 
    It asks for the content folder on start. You can also pass the folder directly:
    ```bash
-   python xnb_board_tool_v2.py "E:\SteamLibrary\steamapps\common\STUNTBOOST\Content\Models\Resources\Board"
+   python xnb_board_tool_v2.py "Driver:\SteamLibrary\steamapps\common\STUNTBOOST\Content\Models\Resources\Board"
    ```
 
 ### Building the Windows version
@@ -117,6 +117,8 @@ Made a mistake? Click **Revert to default** on the texture or thumbnail.
 
 Click **⚙ Settings** in the header to choose:
 
+<img width="2559" height="1389" alt="XNB_Board_Texture_Settings_Layout" src="https://github.com/user-attachments/assets/561e5323-9e5d-4152-b976-738a760b9648" />
+
 | Layout | What it looks like |
 |---|---|
 | **Studio** (default) | Board list on the left, a big 3D preview with the texture below it in the middle, and colors, thumbnail and defaults in an inspector on the right. |
@@ -130,6 +132,8 @@ You can also pick a **Dark** or **Light** theme. The window rebuilds right away 
 ### Speedmeter
 
 Switch to the **Speedmeter** tab in the header. The files are found automatically in `Content\Textures\HUD\SpeedMeter`. While this tab is open, the folder bar at the top shows the speedmeter folder, and **Change…** (or Ctrl+O) picks a different speedmeter folder; on the **Boards** tab it shows and changes the board folder.
+
+<img width="2559" height="1391" alt="XNB_Board_Texture_Speedmeter" src="https://github.com/user-attachments/assets/f59c1b4e-7f42-4d90-8a7d-7ed7c3270e54" />
 
 | File | What it is |
 |---|---|
@@ -150,6 +154,8 @@ When the bar texture is selected, the highlighted box shows which part is visibl
 ### Decorate
 
 Click **Decorate** in the header (or **Decorate…** on the 3D preview) to decorate the selected board directly on the 3D model. Use ‹ › to move between boards; unsaved work stays with each board until you save it or close the tool.
+
+<img width="2557" height="1389" alt="XNB_Board_Texture_Decorate" src="https://github.com/user-attachments/assets/78ad55d3-6fac-4694-83a9-53ae0c540f7a" />
 
 **Left panel: Stickers | Textures**
 - **Stickers:** your sticker packs are listed at the top. Each pack is a folder inside the `stickers` folder next to the tool, and a **Starter** pack of 24 original stickers is added the first time.
@@ -246,10 +252,10 @@ All of them can be deleted safely (but deleting `stickers` or `textures` removes
 - It only writes the `.xnb` files you change, their backups, the `_board_defaults` folder, PNG files you export, sticker packs and textures in the `stickers` and `textures` folders next to the tool (or in `%APPDATA%\XNB Board Tool` if that folder isn't writable), a small settings file in `%APPDATA%\XNB Board Tool`, and a cache in `%LOCALAPPDATA%\XNB Board Tool\cache`.
 - Files are written safely through a temp file and swap, so a crash or power cut can't leave a half-written game file.
 - Damaged or malformed `.xnb` files are rejected instead of being loaded.
+- Results of VirusTotal scan https://www.virustotal.com/gui/file/0595ffc1f130c027a72dad3f2fd4a6a076bba1647712f78f49fa6a762e64d2b5?nocache=1
 
 ## Tips and troubleshooting
 
-- **Close the game** before changing textures.
 - **Steam "Verify integrity of game files"** restores the original textures. Your `_board_defaults` and `.bak` files let you reapply your changes afterwards.
 - **"compressed XNB files are not supported"** means the file uses LZX/LZ4 compression. Decompress it with an XNB tool first.
 - **3D view looks wrong, or the tool closes when the 3D view appears:** untick **Draw the 3D board on the graphics card** in Settings. If the tool closes before you can reach Settings, it uses the processor automatically on the next start. You can also start it with the environment variable `XNB_NO_GPU=1`. Updating the graphics driver usually fixes these problems.
@@ -310,4 +316,4 @@ This is a fan-made modding tool and is not affiliated with the developers of STU
 ## License
 
 <!-- Choose a license, e.g. MIT: https://choosealicense.com/licenses/mit/ -->
-TBD
+GPL-3.0 license
