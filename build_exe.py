@@ -28,7 +28,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "xnb_board_tool_v2.py"
 NAME = "XNB Board Tool"
-VERSION = "1.0.0"
+VERSION = "1.2.4"
 AUTHOR = "XNB Board Tool"          # shown as "Company" in the exe's Properties -> Details
 DESCRIPTION = "XNB Board Texture Tool - STUNTBOOST board texture editor"
 ICON_NAME = "_xnb_tool_icon.ico"
@@ -91,6 +91,8 @@ def main():
     onefile = "--onefile" in sys.argv[1:]
     if not SCRIPT.exists():
         sys.exit(f"Cannot find {SCRIPT.name} next to this build script.")
+    if not (HERE / "xnb_board_tool" / "__init__.py").exists():
+        sys.exit("Cannot find the xnb_board_tool folder next to this build script.")
     try:
         import tkinter  # noqa: F401
     except ImportError:
@@ -98,13 +100,17 @@ def main():
                  "(tick 'tcl/tk and IDLE') and run again.")
 
     print("== Installing build tools ==")
-    pip("pyinstaller", "pillow")
+    pip("pyinstaller", "pillow", "numpy")
     dnd = True
     try:
         pip("tkinterdnd2")
     except subprocess.CalledProcessError:
         dnd = False
         print("tkinterdnd2 could not be installed - building without drag & drop.")
+    try:
+        pip("qoi")
+    except subprocess.CalledProcessError:
+        print("qoi could not be installed - building with the built-in (slower) decoder.")
 
     # Only ever delete our own, uniquely named temp folder - never a generic
     # "build"/"dist" folder that might belong to something else.
@@ -129,9 +135,14 @@ def main():
         "--distpath", str(dist),
         "--workpath", str(work),
         "--specpath", str(work),
+        "--paths", str(HERE),
+        "--collect-submodules", "xnb_board_tool",
+        "--collect-data", "xnb_board_tool",          # built-in Starter sticker pack
     ]
     if dnd and importlib.util.find_spec("tkinterdnd2"):
         args += ["--collect-all", "tkinterdnd2"]
+    if importlib.util.find_spec("qoi"):
+        args += ["--collect-all", "qoi"]
     subprocess.check_call(args)
     shutil.rmtree(work, ignore_errors=True)
 
