@@ -252,7 +252,7 @@ All of them can be deleted safely (but deleting `stickers` or `textures` removes
 - It only writes the `.xnb` files you change, their backups, the `_board_defaults` folder, PNG files you export, sticker packs and textures in the `stickers` and `textures` folders next to the tool (or in `%APPDATA%\XNB Board Tool` if that folder isn't writable), a small settings file in `%APPDATA%\XNB Board Tool`, and a cache in `%LOCALAPPDATA%\XNB Board Tool\cache`.
 - Files are written safely through a temp file and swap, so a crash or power cut can't leave a half-written game file.
 - Damaged or malformed `.xnb` files are rejected instead of being loaded.
-- Results of VirusTotal scan https://www.virustotal.com/gui/file/0595ffc1f130c027a72dad3f2fd4a6a076bba1647712f78f49fa6a762e64d2b5?nocache=1
+- Results of VirusTotal scan https://www.virustotal.com/gui/file/15a859aa987180efedc5fcf333563fbf5c2acb7cb653857e1ebf079cef757f0a?nocache=1
 
 ## Tips and troubleshooting
 
@@ -264,7 +264,7 @@ All of them can be deleted safely (but deleting `stickers` or `textures` removes
 ## Requirements
 
 - Windows 10/11. The script also runs on Linux and macOS with Python and Tk.
-- Python 3.9+ with Tkinter
+- Python 3.9+ (best Python 3.15) with Tkinter
 - [Pillow](https://pypi.org/project/pillow/)
 - [numpy](https://pypi.org/project/numpy/) (for the 3D preview)
 - Optional: a graphics card with OpenGL 3.3 (most PCs from the last ten years or so) for the faster 3D preview. Nothing extra to install; without it the processor draws the board.
@@ -311,7 +311,7 @@ from xnb_board_tool import scan, read_texture_palette
 
 ## Disclaimer
 
-This is a fan-made modding tool and is not affiliated with the developers of STUNTBOOST. Back up your files and use it at your own risk. Share only artwork you have the right to share.
+This is a fan-made modding tool and is not affiliated with the developers of STUNTBOOST. Back up your files and use it at your *own risk*. Share only artwork you have the right to share.
 
 ## License
 
