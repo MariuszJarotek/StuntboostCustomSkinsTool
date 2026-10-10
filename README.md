@@ -18,7 +18,7 @@ Pick a board, drop in any PNG or JPG, choose the board's colors, and the tool wr
 - **Adjust before applying:** every new image opens an editor where you can drag to position it, zoom with the mouse wheel, choose **Fill / Fit / Stretch**, rotate (90° steps or any angle), flip, and pick a color or transparency for uncovered areas. A dimmed border shows what will be cut off. The result always has the original texture size, so the game gets exactly what it expects.
 - **Board colors:** pick the border, under, wheels and truck colors with a color picker, or type `#rrggbb` / `r,g,b`. The tool writes them into the texture for you. You can copy and paste a color set between boards, and the colors are kept when you replace the artwork.
 - **Layouts and themes:** choose **Studio** (big 3D view in the middle), **Gallery** (all boards as cards with their colors) or **Classic** in **Settings**, in a **Dark** or **Light** theme.
-- **3D preview:** see the selected board on the game's own skateboard model. Drag to rotate, scroll to zoom, and use the Top, Bottom and Side views. Picked colors show up before you apply them, and screws appear on boards that have them in the game. Click the wheels, trucks, screws or border to change that color.
+- **3D preview:** see the selected board on the game's own skateboard model. Drag to rotate, scroll to zoom, and use the Top, Bottom and Side views. Picked colors show up before you apply them, and screws appear on boards that have them in the game. Click the wheels, trucks, screws or border to change that color. It is drawn on the graphics card when one is available, so it stays sharp while you turn it.
 - **Decorate tab:** put stickers and images straight onto the 3D board as layers, on top of the board's art or a base texture (black, stripes, carbon, camo, flames…). Comes with a Starter pack of 24 stickers; make your own packs and share them as .zip files. Layers stay editable after saving.
 - **Thumbnails:** replace the thumbnail separately, or generate it from the board texture with one click.
 - **Speedmeter tab:** restyle the HUD speedometer. Edit the bar texture, bar beginning, blocks and the CM/S and MM/S text, and see a **live in-game preview** with speed and charge sliders.
@@ -28,8 +28,9 @@ Pick a board, drop in any PNG or JPG, choose the board's colors, and the tool wr
   - Boards load in the background, so the window never freezes. The thumbnail shows right away, and the full texture follows a moment later.
   - Recently opened boards stay in memory, and the next and previous boards are preloaded, so stepping through boards is instant.
   - Gallery card images and board statuses are cached on disk, so large folders open instantly the second time.
+  - The 3D board is drawn on the graphics card (OpenGL 3.3, no extra install), at full resolution even while turning. Without a usable graphics card it is drawn by the processor, as before.
   - Changing a color or switching boards recolors the 3D frame already on screen instead of rendering it again.
-  - Dragging a sticker in Decorate only redraws the area the sticker moved through.
+  - Dragging a sticker in Decorate only redraws the area the sticker moved through, in both the 3D view and the flat texture, and only that part is sent to the screen. Both follow the mouse smoothly with little processor use.
   - The Gallery draws only the cards you can see (and a few around them), so large folders switch to it quickly; the rest appear as you scroll.
   - After saving a QOI texture (the format STUNTBOOST uses), the tool keeps the pixels it just wrote instead of reading the file back.
   - Low memory use: stickers keep only the pixels they cover, boards you have stepped away from in Decorate keep just their unsaved design (the rest is rebuilt when you come back), very large images are reduced to what a board can show, and the Gallery keeps only the small on-screen pictures: card images are read back from the disk cache when needed. Recently opened textures are kept up to about 24 MB, not by count, so the worst case stays bounded.
@@ -50,7 +51,7 @@ Boards are found automatically as `<name>.xnb` + `<name>Thumbnail.xnb` pairs. If
 
 ### Option A: download the Windows version (easiest)
 
-1. Go to [Releases](../../releases) and download `XNB-Board-Tool-v1.2.4-windows.zip`.
+1. Go to [Releases](../../releases) and download `XNB-Board-Tool-v1.3.2-windows.zip`.
 2. Unzip it anywhere, for example to your Desktop.
 3. Open the `XNB Board Tool` folder and run **`XNB Board Tool.exe`**. Keep the `_internal` folder next to it, because the app needs it.
 
@@ -94,7 +95,7 @@ You only need this if you want to build the release yourself. It requires Python
 2. Double-click `build_exe.bat`. It installs PyInstaller, Pillow, numpy, tkinterdnd2 and qoi (the last two are optional), then builds the app.
 3. The results are in the `dist` folder:
    - `dist\XNB Board Tool\`: the app folder
-   - `dist\XNB-Board-Tool-v1.2.4-windows.zip`: the same folder zipped, ready to upload to a GitHub release
+   - `dist\XNB-Board-Tool-v1.3.2-windows.zip`: the same folder zipped, ready to upload to a GitHub release
 
 To make a single `.exe` instead, run `build_exe.bat --onefile`. Single-file builds are flagged by antivirus much more often, because they unpack themselves to a temp folder on every start. That's why the folder build is the default.
 
@@ -121,6 +122,8 @@ Click **⚙ Settings** in the header to choose:
 | **Studio** (default) | Board list on the left, a big 3D preview with the texture below it in the middle, and colors, thumbnail and defaults in an inspector on the right. |
 | **Gallery** | Every board as a card with its art and its 4 colors, so you can compare all boards at a glance. Click a card to edit it in the drawer on the right. Use **Per row** (Auto, 2–6) above the grid to choose how many cards fit in a row; the cards scale to fill it. Drag the divider between the cards and the drawer to resize the drawer. The drawer combines everything in one card: **Texture / Thumbnail** tabs share the preview (drop an image on it to replace whichever is shown), and the 4 board colors sit in one row below. Less common actions are in the **⋯** menus. |
 | **Classic** | The original layout: texture and 3D side by side, colors below, thumbnail and defaults at the bottom. |
+
+**3D preview:** untick **Draw the 3D board on the graphics card (GPU)** to draw it with the processor instead. The window also shows which one is in use. The graphics driver needs some extra memory while it's loaded (how much depends on the driver), and unticking frees it after a restart.
 
 You can also pick a **Dark** or **Light** theme. The window rebuilds right away and keeps your folder, the selected board and any colors you haven't applied yet. Your choice is remembered for next time.
 
@@ -232,6 +235,7 @@ In the **Adjust image** window:
 | `stickers\<pack>\` (next to the tool) | Your sticker packs. The Starter pack is added the first time. |
 | `textures\` (next to the tool) | Your own base textures |
 | `%APPDATA%\XNB Board Tool\settings.json` | Your layout, theme, gallery cards-per-row and drawer width |
+| `%APPDATA%\XNB Board Tool\gpu_start.marker` | Exists only while the graphics card is being started. If it's still there at the next start, the last start crashed, and the GPU isn't tried again until you tick the option in Settings. |
 | `%LOCALAPPDATA%\XNB Board Tool\cache\` | Small gallery card images and colors, one subfolder per content folder. Rebuilt automatically when a board changes. |
 
 All of them can be deleted safely (but deleting `stickers` or `textures` removes your packs and textures). Deleting the game-folder files only loses the ability to revert; deleting settings.json resets the layout and theme; deleting the cache only makes the next start a little slower.
@@ -248,6 +252,7 @@ All of them can be deleted safely (but deleting `stickers` or `textures` removes
 - **Close the game** before changing textures.
 - **Steam "Verify integrity of game files"** restores the original textures. Your `_board_defaults` and `.bak` files let you reapply your changes afterwards.
 - **"compressed XNB files are not supported"** means the file uses LZX/LZ4 compression. Decompress it with an XNB tool first.
+- **3D view looks wrong, or the tool closes when the 3D view appears:** untick **Draw the 3D board on the graphics card** in Settings. If the tool closes before you can reach Settings, it uses the processor automatically on the next start. You can also start it with the environment variable `XNB_NO_GPU=1`. Updating the graphics driver usually fixes these problems.
 - **Drag & drop doesn't work:** install `tkinterdnd2` (`pip install tkinterdnd2`) and restart the tool.
 
 ## Requirements
@@ -256,6 +261,7 @@ All of them can be deleted safely (but deleting `stickers` or `textures` removes
 - Python 3.9+ with Tkinter
 - [Pillow](https://pypi.org/project/pillow/)
 - [numpy](https://pypi.org/project/numpy/) (for the 3D preview)
+- Optional: a graphics card with OpenGL 3.3 (most PCs from the last ten years or so) for the faster 3D preview. Nothing extra to install; without it the processor draws the board.
 - [tkinterdnd2](https://pypi.org/project/tkinterdnd2/) (optional, for drag & drop)
 - [qoi](https://pypi.org/project/qoi/) (optional, for faster loading). The tool checks it on start and falls back to its built-in decoder if it doesn't work correctly.
 
@@ -273,11 +279,13 @@ xnb_board_tool/
   caches.py                 in-memory texture cache and on-disk gallery cache
   imageops.py               image fitting, rotation, thumbnails
   speedmeter.py             speedometer rendering, as the game draws it
-  board3d.py                skateboard model and software 3D renderer
+  board3d.py                skateboard model, camera / lighting, software (numpy) 3D renderer
+  gpu3d.py                  the same renderer on the graphics card (OpenGL 3.3 through ctypes)
   settings.py               themes, layouts, saved settings
   stickers.py               sticker packs on disk, .zip import / export
   basetex.py                base textures for decorating (built-in patterns, your images)
   layers.py                 layers, composing, editable-layer project files
+  icon.py                   the app's logo (exe icon and window / taskbar icon)
   assets/stickers/Starter/  the built-in Starter sticker pack
   gui/
     base.py                 Tk setup and shared widgets

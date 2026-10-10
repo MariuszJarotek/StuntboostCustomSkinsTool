@@ -28,7 +28,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "xnb_board_tool_v2.py"
 NAME = "XNB Board Tool"
-VERSION = "1.2.4"
+VERSION = "1.3.2"
 AUTHOR = "XNB Board Tool"          # shown as "Company" in the exe's Properties -> Details
 DESCRIPTION = "XNB Board Texture Tool - STUNTBOOST board texture editor"
 ICON_NAME = "_xnb_tool_icon.ico"
@@ -39,17 +39,10 @@ def pip(*pkgs):
 
 
 def make_icon(path: Path):
-    """Draws the app's logo (amber tile with a skateboard) as a multi-size .ico."""
-    from PIL import Image, ImageDraw
-    S = 256
-    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle([8, 8, S - 8, S - 8], radius=48, fill=(240, 168, 48, 255))
-    dark = (20, 21, 24, 255)
-    d.rounded_rectangle([44, 92, S - 44, 152], radius=30, outline=dark, width=16)
-    for cx in (84, S - 84):
-        d.ellipse([cx - 16, 168, cx + 16, 200], fill=dark)
-    im.save(path, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    """The app's logo as a multi-size .ico (the same drawing the window uses)."""
+    sys.path.insert(0, str(HERE))
+    from xnb_board_tool.icon import save_ico
+    save_ico(path)
 
 
 def write_version_file(path: Path):

@@ -198,7 +198,11 @@ class Preview3DMixin:
         # rendered at a lower resolution and scaled up instead of being cut off
         W = max(200, c.winfo_width())
         H = max(120, c.winfo_height() if c.winfo_height() > 20 else int(float(c.cget("height"))))
-        budget = min(1.0, (1400 * 800 / float(W * H)) ** 0.5)
+        from ..board3d import gpu_active
+        # the CPU renderer is capped at about 1400x800 (larger canvases are scaled up); the GPU
+        # draws up to about 1920x1200 directly
+        cap = 1920 * 1200 if gpu_active() else 1400 * 800
+        budget = min(1.0, (cap / float(W * H)) ** 0.5)
         s = budget * (self._v3_scale if fast else 1.0)
         key = (self.v3_yaw, self.v3_pitch, self.v3_zoom, W, H, self.v3_screws.get(), self.v3_outline.get(), C["bg"])
         if not fast and self._v3_info is not None and getattr(self, "_v3_info_key", None) == key \
@@ -261,7 +265,10 @@ class Preview3DMixin:
             self._v3_photo = ImageTk.PhotoImage(res)
             c.delete("all")
             self._v3_item = c.create_image(0, 0, anchor="nw", image=self._v3_photo)
+        from .. import board3d
         note = "Game's board model \u00b7 colors from the texture's first pixels"
+        if board3d.LAST_RENDERER == "gpu":
+            note += " \u00b7 GPU"
         if self.pal and self._pal_changed():
             note += " \u00b7 showing picked colors (not applied yet)"
         self.v3_note.config(text=note)

@@ -46,6 +46,10 @@ What's new in v2:
     Top / Bottom / Side views, screws where the game shows them. Picked colors show
     before they are applied, and clicking the wheels, trucks, screws or border picks
     that color.
+    Drawn on the graphics card (OpenGL 3.3 through ctypes, no extra packages) when one is
+    usable, at full resolution even while turning; otherwise by the numpy renderer. A
+    self-test and a crash guard fall back to the CPU on driver trouble; Settings has a
+    switch, and XNB_NO_GPU=1 turns it off.
   * Decorate tab: put stickers and images straight onto the 3D board.
       - Stickers are dragged onto the board (or the flat texture below it) and follow the
         deck's surface; mouse wheel scales, Shift+wheel rotates.
@@ -80,7 +84,7 @@ Unchanged from v1 (same file formats and folders):
 
 Project layout (this file only starts the app):
   xnb_board_tool/            library: XNB/QOI formats, defaults, board colors, caches,
-                             the speedometer and 3D renderers, settings, sticker packs,
+                             the speedometer and 3D renderers (CPU and GPU), settings, sticker packs,
                              base textures and decoration layers
   xnb_board_tool/assets/     the built-in Starter sticker pack
   xnb_board_tool/gui/        the Tk user interface (base widgets, dialogs, the main window

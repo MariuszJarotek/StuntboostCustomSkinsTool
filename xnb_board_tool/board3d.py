@@ -151,17 +151,11 @@ def _board_scene(model: dict, screws: bool) -> dict:
     return sc
 
 
-def render_board(model: dict, tex: Image.Image, yaw: float, pitch: float, zoom: float,
-                 W: int, H: int, screws: bool = True, outline: bool = True,
-                 bg=(20, 21, 24), info: Optional[dict] = None) -> Image.Image:
-    """Renders the board. yaw/pitch in degrees (+pitch = from above), zoom 1 = fit.
-    If `info` is a dict, it is filled with per-pixel data (which texel and part each screen
-    pixel shows), so the same view can be re-textured fast (retexture) and picked (pick_texel)."""
+def _prepare(model: dict, yaw: float, pitch: float, zoom: float, W: int, H: int, screws: bool) -> dict:
+    """Camera, lighting and culling for one view: everything both renderers (CPU and GPU) share,
+    so they draw exactly the same triangles with the same shading."""
     import numpy as np
     sc = _board_scene(model, screws)
-    # tex: PIL image, or an HxWx3 uint8 array prepared once by the caller (faster)
-    texa = tex if isinstance(tex, np.ndarray) else np.asarray(tex.convert("RGB"))
-    th, tw = texa.shape[:2]
     P, T, radius = sc["P"], sc["T"], sc["radius"]
 
     cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
@@ -196,7 +190,37 @@ def render_board(model: dict, tex: Image.Image, yaw: float, pitch: float, zoom: 
     by1 = np.minimum(np.ceil(Y.max(1)), H - 1).astype(np.int32)
     ok = (np.abs(area) > 1e-6) & (bx1 >= bx0) & (by1 >= by0) & (D.min(1) > 0)
     ok &= facing | ~sc["cull"]
-    idx = np.nonzero(ok)[0]
+    return {"sc": sc, "radius": radius, "shade": shade, "X": X, "Y": Y, "D": D, "area": area,
+            "bx0": bx0, "bx1": bx1, "by0": by0, "by1": by1, "idx": np.nonzero(ok)[0]}
+
+
+def render_board(model: dict, tex: Image.Image, yaw: float, pitch: float, zoom: float,
+                 W: int, H: int, screws: bool = True, outline: bool = True,
+                 bg=(20, 21, 24), info: Optional[dict] = None) -> Image.Image:
+    """Renders the board. yaw/pitch in degrees (+pitch = from above), zoom 1 = fit.
+    If `info` is a dict, it is filled with per-pixel data (which texel and part each screen
+    pixel shows), so the same view can be re-textured fast (retexture) and picked (pick_texel).
+    Uses the graphics card when it can (see gpu3d.py) and this numpy renderer otherwise."""
+    import numpy as np
+    # tex: PIL image, or an HxWx3 uint8 array prepared once by the caller (faster)
+    texa = tex if isinstance(tex, np.ndarray) else np.asarray(tex.convert("RGB"))
+    pre = _prepare(model, yaw, pitch, zoom, W, H, screws)
+    if _gpu_on:
+        img = _render_gpu(pre, texa, W, H, outline, bg, info)
+        if img is not None:
+            return img
+    return _render_cpu(pre, texa, W, H, outline, bg, info)
+
+
+def _render_cpu(pre: dict, texa, W: int, H: int, outline: bool, bg, info: Optional[dict]) -> Image.Image:
+    """The software (numpy) rasterizer."""
+    import numpy as np
+    global LAST_RENDERER
+    LAST_RENDERER = "cpu"
+    sc, radius, shade = pre["sc"], pre["radius"], pre["shade"]
+    X, Y, D, area, idx = pre["X"], pre["Y"], pre["D"], pre["area"], pre["idx"]
+    bx0, bx1, by0, by1 = pre["bx0"], pre["bx1"], pre["by0"], pre["by1"]
+    th, tw = texa.shape[:2]
     # scanline spans: for every row a triangle touches, only the x-range between its edges is
     # tested, instead of its whole bounding box (~5x fewer pixels to test)
     bh = (by1[idx] - by0[idx] + 1).astype(np.int64)
@@ -326,10 +350,113 @@ def render_board(model: dict, tex: Image.Image, yaw: float, pitch: float, zoom: 
     return Image.fromarray(frame, "RGB")
 
 
+# --------------------------------------------------------------------------
+#  GPU path (OpenGL 3.3 through ctypes, see gpu3d.py); falls back to the CPU renderer
+# --------------------------------------------------------------------------
+import os as _os
+
+_ENV_OFF = _os.environ.get("XNB_NO_GPU", "") not in ("", "0")   # escape hatch: XNB_NO_GPU=1
+_gpu_on = not _ENV_OFF
+_gpu_failed = ""            # why the GPU is not used ('' = not tried yet or working)
+LAST_RENDERER = ""          # 'gpu' or 'cpu': which one drew the last frame
+
+
+def set_gpu_enabled(on: bool, retry: bool = False) -> None:
+    """Turns the GPU renderer on or off (the Settings checkbox). retry=True also forgets an
+    earlier failure, so the graphics card is tried again."""
+    global _gpu_on, _gpu_failed
+    if retry and on:
+        _gpu_failed = ""
+        from . import gpu3d
+        gpu3d.clear_crash_marker()
+    _gpu_on = bool(on) and not _gpu_failed and not _ENV_OFF
+
+
+def gpu_active() -> bool:
+    """True when frames go to the graphics card (the views then render at full resolution)."""
+    return _gpu_on and not _gpu_failed
+
+
+def gpu_status() -> tuple:
+    """(using_gpu, text) for the settings window and the 3D note."""
+    if _gpu_failed:
+        return False, f"CPU (graphics card not usable: {_gpu_failed})"
+    if _ENV_OFF:
+        return False, "CPU (GPU turned off by XNB_NO_GPU)"
+    if not _gpu_on:
+        return False, "CPU (GPU turned off)"
+    from . import gpu3d
+    r = gpu3d.existing()
+    if r is None:
+        return True, "GPU (starts with the first 3D frame)"
+    return True, f"GPU ({r.name})"
+
+
+def _render_gpu(pre: dict, texa, W: int, H: int, outline: bool, bg, info: Optional[dict]):
+    """Renders on the graphics card; returns None (and stays on the CPU from then on) if anything
+    about the GPU does not work."""
+    import numpy as np
+    global _gpu_on, _gpu_failed, LAST_RENDERER
+    try:
+        from . import gpu3d
+        r = gpu3d.get()
+        sc, idx, radius = pre["sc"], pre["idx"], pre["radius"]
+        n = len(idx)
+        verts = np.empty((n, 3, 8), np.float32)
+        verts[:, :, 0] = pre["X"][idx]
+        verts[:, :, 1] = pre["Y"][idx]
+        verts[:, :, 2] = pre["D"][idx]
+        verts[:, :, 3:5] = sc["UVt"][idx]
+        verts[:, :, 5] = pre["shade"][idx, None]
+        verts[:, :, 6] = sc["OID"][idx, None]
+        verts[:, :, 7] = np.where(sc["screw"][idx], radius * 0.004, 0.0)[:, None]  # screws sit on the deck
+        if n:
+            near = float(pre["D"][idx].min()) - radius * 0.02
+            far = float(pre["D"][idx].max()) + radius * 0.02
+        else:
+            near, far = 0.0, 1.0
+        out = r.render(verts.reshape(-1, 8), np.ascontiguousarray(texa, np.uint8), W, H,
+                       tuple(float(c) for c in bg[:3]), outline, radius * 0.06, near, far,
+                       info is not None)
+    except Exception as e:                      # driver problem, no OpenGL 3.3, ...: CPU from now on
+        _gpu_failed = (str(e) or e.__class__.__name__).splitlines()[0][:160]
+        _gpu_on = False
+        return None
+    LAST_RENDERER = "gpu"
+    frame = out["frame"]
+    if info is not None:
+        th, tw = texa.shape[:2]
+        oid = out["oid"]
+        info.clear()
+        # the per-board-pixel lists (pix, tu, tv, shade) are only built if the frame is
+        # recolored later (_pixel_lists), which most frames never are
+        info.update(W=W, H=H, bg=bg, tex_size=(tw, th), oid=oid,
+                    tu_map=np.ascontiguousarray(out["texel"][:, :, 0]),
+                    tv_map=np.ascontiguousarray(out["texel"][:, :, 1]),
+                    shade_map=out["shade"])
+        info["edge"] = out["edge"] if (outline and oid.any()) else None
+        info["frame"] = frame.reshape(-1, 3)
+    return Image.fromarray(frame, "RGB")
+
+
+def _pixel_lists(info: dict) -> None:
+    """Board pixels as flat lists (pix, tu, tv, shade). The CPU renderer makes them directly;
+    after a GPU frame they are built from the per-pixel maps the first time they are needed."""
+    import numpy as np
+    if "pix" in info or "shade_map" not in info:
+        return
+    pix = np.flatnonzero(info["oid"].ravel()).astype(np.int32)
+    if len(pix):
+        info.update(pix=pix, tu=info["tu_map"].ravel()[pix], tv=info["tv_map"].ravel()[pix],
+                    shade=info["shade_map"].ravel()[pix][:, None])
+    del info["shade_map"]
+
+
 def retexture(info: dict, tex) -> Image.Image:
     """Redraws the last render_board() view with a different texture of the same size,
     without rasterizing again (a few milliseconds instead of a full render)."""
     import numpy as np
+    _pixel_lists(info)
     texa = tex if isinstance(tex, np.ndarray) else np.asarray(tex.convert("RGB"))
     W, H = info["W"], info["H"]
     out = np.empty((H * W, 3), np.float32)
@@ -354,6 +481,8 @@ def retexture_region(info: dict, tex, box) -> Image.Image:
     are recolored; the rest is reused from the last frame. Much faster for a small change."""
     import numpy as np
     texa = tex if isinstance(tex, np.ndarray) else np.asarray(tex.convert("RGB"))
+    _pixel_lists(info)
+    info.pop("changed_box", None)                       # only set when just a rectangle changed
     if info.get("frame") is None or "pix" not in info or (texa.shape[1], texa.shape[0]) != info["tex_size"]:
         return retexture(info, texa)
     W, H = info["W"], info["H"]
@@ -361,7 +490,11 @@ def retexture_region(info: dict, tex, box) -> Image.Image:
     x0, y0, x1, y1 = box
     tu, tv = info["tu"], info["tv"]
     sel = np.nonzero((tu >= x0) & (tu < x1) & (tv >= y0) & (tv < y1))[0]
+    info["changed_box"] = (0, 0, 0, 0)                  # screen rectangle that changed (for display)
     if len(sel):
+        sp = info["pix"][sel]
+        ys, xs = sp // W, sp % W
+        info["changed_box"] = (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
         vals = texa[tv[sel], tu[sel]] * info["shade"][sel]
         if info.get("edge") is not None:
             ep = info.get("edge_pix")

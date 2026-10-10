@@ -50,7 +50,7 @@ C: dict = {}
 BADGES: dict = {}
 
 
-SETTINGS = {"layout": "studio", "theme": "dark", "gallery_cols": "auto"}
+SETTINGS = {"layout": "studio", "theme": "dark", "gallery_cols": "auto", "gpu3d": True}
 
 
 GALLERY_COLS = ("auto", "2", "3", "4", "5", "6")
@@ -75,7 +75,7 @@ def settings_path() -> Path:
 
 
 def load_settings() -> dict:
-    out = {"layout": "studio", "theme": "dark", "gallery_cols": "auto"}
+    out = {"layout": "studio", "theme": "dark", "gallery_cols": "auto", "gpu3d": True}
     try:
         data = json.loads(settings_path().read_text("utf-8"))
         if data.get("layout") in LAYOUTS:
@@ -84,6 +84,8 @@ def load_settings() -> dict:
             out["theme"] = data["theme"]
         if str(data.get("gallery_cols")) in GALLERY_COLS:
             out["gallery_cols"] = str(data["gallery_cols"])
+        if isinstance(data.get("gpu3d"), bool):
+            out["gpu3d"] = data["gpu3d"]
         if isinstance(data.get("drawer_w"), int) and 300 <= data["drawer_w"] <= 2000:
             out["drawer_w"] = data["drawer_w"]
     except Exception:
@@ -95,7 +97,7 @@ def save_settings(values: dict) -> None:
     try:
         sp = settings_path()
         sp.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write(sp, json.dumps({k: values[k] for k in ("layout", "theme", "gallery_cols", "drawer_w") if k in values}, indent=2).encode("utf-8"))
+        atomic_write(sp, json.dumps({k: values[k] for k in ("layout", "theme", "gallery_cols", "drawer_w", "gpu3d") if k in values}, indent=2).encode("utf-8"))
     except Exception:
         pass
 

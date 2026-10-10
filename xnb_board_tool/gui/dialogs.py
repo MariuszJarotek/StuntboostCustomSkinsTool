@@ -25,6 +25,7 @@ class SettingsDialog(tk.Toplevel):
         self.resizable(False, False)
         self.layout = tk.StringVar(value=SETTINGS.get("layout", "studio"))
         self.theme = tk.StringVar(value=SETTINGS.get("theme", "dark"))
+        self.gpu = tk.BooleanVar(value=bool(SETTINGS.get("gpu3d", True)))
         body = tk.Frame(self, bg=C["panel"])
         body.pack(padx=22, pady=18)
         label(body, "Settings", "title").pack(anchor="w")
@@ -39,6 +40,15 @@ class SettingsDialog(tk.Toplevel):
         row2.pack(fill="x")
         for key, name in (("dark", "Dark"), ("light", "Light")):
             self._tile(row2, self.theme, key, name, "", self._draw_theme, w=120, h=56)
+        label(body, "3D preview", "h2").pack(anchor="w", pady=(18, 6))
+        tk.Checkbutton(body, text="Draw the 3D board on the graphics card (GPU) - faster and sharper while turning",
+                       variable=self.gpu, bg=C["panel"], fg=C["text"], activebackground=C["panel"],
+                       activeforeground=C["text"], selectcolor=C["bg"], font=F["body"], bd=0,
+                       highlightthickness=0, cursor="hand2", anchor="w").pack(anchor="w")
+        from ..board3d import gpu_status
+        label(body, "Now: " + gpu_status()[1] + "\nThe graphics driver needs some extra memory while loaded. "
+              "If the 3D view looks wrong or the tool crashes, untick this.", "small", "muted",
+              justify="left", wraplength=520, anchor="w").pack(anchor="w", pady=(4, 0))
         label(body, f"Saved in {settings_path()}", "small", "muted").pack(anchor="w", pady=(16, 0))
         btns = tk.Frame(body, bg=C["panel"])
         btns.pack(fill="x", pady=(16, 0))
@@ -110,10 +120,10 @@ class SettingsDialog(tk.Toplevel):
         cv.create_rectangle(w - 34, 16, w - 16, 38, fill=t["accent"], outline="")
 
     def _apply(self):
-        layout, theme = self.layout.get(), self.theme.get()
+        layout, theme, gpu = self.layout.get(), self.theme.get(), bool(self.gpu.get())
         self.grab_release()
         self.destroy()
-        self.app.apply_settings(layout, theme)
+        self.app.apply_settings(layout, theme, gpu)
 
 
 # ---------------- adjust-image dialog ----------------

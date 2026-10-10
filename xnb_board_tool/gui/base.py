@@ -29,7 +29,10 @@ def init():
         TkinterDnD, DND_FILES = None, None
     SETTINGS.update(load_settings())
     set_theme(SETTINGS["theme"])
+    _setup_gpu()
+    _set_app_id()
     root = TkinterDnD.Tk() if TkinterDnD else tk.Tk()
+    _set_window_icon(root)
     fams = set(tkfont.families(root))
 
     def pick(*names):
@@ -47,6 +50,42 @@ def init():
     root.bind_all("<Button-4>", lambda e: _global_wheel(e, -1))
     root.bind_all("<Button-5>", lambda e: _global_wheel(e, 1))
     return root
+
+
+def _setup_gpu():
+    """3D on the graphics card unless turned off in Settings; the crash marker lives next to
+    the settings file (see gpu3d.get)."""
+    from .. import board3d, gpu3d
+    from ..settings import settings_path
+    gpu3d.crash_marker = settings_path().parent / "gpu_start.marker"
+    board3d.set_gpu_enabled(SETTINGS.get("gpu3d", True))
+
+
+_icon_photos: list = []  # Tk drops images nobody references, so the icon photos are kept here
+
+
+def _set_app_id():
+    """Windows groups taskbar buttons by app ID. Without its own ID a script run with python.exe
+    is shown as Python (with Python's icon); with one, the taskbar uses this app's window icon."""
+    import sys
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("XNBBoardTool.App")
+    except Exception:
+        pass
+
+
+def _set_window_icon(win):
+    """The app's logo as the icon of every window (title bar, taskbar, Alt+Tab)."""
+    from ..icon import draw_icon
+    try:
+        _icon_photos[:] = [ImageTk.PhotoImage(draw_icon(s), master=win) for s in (16, 32, 48, 64, 256)]
+        # True: also the default for every window opened later (dialogs)
+        win.iconphoto(True, *reversed(_icon_photos))
+    except Exception:
+        pass
 
 
 def widget_path_at(x_root, y_root) -> str:

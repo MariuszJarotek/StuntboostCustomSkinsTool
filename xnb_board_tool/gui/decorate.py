@@ -1251,16 +1251,23 @@ class DecorateMixin:
             return
         region = self.dc_compose(fast)
         if self.dc_info is not None and self.dc_info.get("tex_size") == self.dc.size:
+            info = self.dc_info
             if region is not None:
-                self._dc_show(retexture_region(self.dc_info, self.dc_texarr, region))
+                img = retexture_region(info, self.dc_texarr, region)
+                # a partial update is only right if the screen shows this same frame
+                same = getattr(self, "_dc_shown", None) is info
+                self._dc_show(img, box=info.get("changed_box") if same else None)
             else:
-                self._dc_show(retexture(self.dc_info, self.dc_texarr))
+                self._dc_show(retexture(info, self.dc_texarr))
+            self._dc_shown = info
         else:
             self.dc_render()
-        if fast:
-            # while dragging, the flat texture view is redrawn at most ~11 times a second
+        if fast and region is not None:
+            self.dc_draw_flat(region)           # just the rectangle the sticker moved through
+        elif fast:
+            # a whole-texture change while dragging: redraw at most ~30 times a second
             if getattr(self, "_dc_flat_job", None) is None:
-                self._dc_flat_job = base.root.after(90, self._dc_flat_due)
+                self._dc_flat_job = base.root.after(33, self._dc_flat_due)
         else:
             self.dc_draw_flat()
         if rebuild_list:
@@ -1297,7 +1304,10 @@ class DecorateMixin:
         if self.dc is None or self.dc_texarr is None:
             return
         W, H = max(200, self.dc_cv.winfo_width()), max(150, self.dc_cv.winfo_height())
-        s = min(1.0, (1300 * 760 / float(W * H)) ** 0.5) * (0.5 if fast else 1.0)
+        from ..board3d import gpu_active
+        gpu = gpu_active()
+        # on the GPU even frames while turning are drawn at full resolution
+        s = min(1.0, ((1920 * 1200 if gpu else 1300 * 760) / float(W * H)) ** 0.5) * (0.5 if fast and not gpu else 1.0)
         self.dc_renderer.request(model=self.v3_model, tex=self.dc_texarr, yaw=self.dc_yaw, pitch=self.dc_pitch,
                                  zoom=self.dc_zoom, W=max(1, int(W * s)), H=max(1, int(H * s)),
                                  screws=self.v3_screws.get(), outline=self.v3_outline.get(),
@@ -1316,13 +1326,16 @@ class DecorateMixin:
                 if (job["yaw"], job["pitch"], job["zoom"]) != (self.dc_yaw, self.dc_pitch, self.dc_zoom) \
                         and not job["fast"]:
                     continue
+                shown = None
                 if not job["fast"]:
                     self.dc_info = info
                     self.dc_info_scale = job["W"] / float(job["canvas"][0])
                     if self.dc_texarr is not None \
                             and info.get("tex_size") == (self.dc_texarr.shape[1], self.dc_texarr.shape[0]):
                         img = retexture(info, self.dc_texarr)    # the texture may have changed meanwhile
+                        shown = info
                 self._dc_show(img, job["canvas"])
+                self._dc_shown = shown                           # which frame data is on screen
         except queue.Empty:
             pass
         except tk.TclError:
@@ -1332,9 +1345,18 @@ class DecorateMixin:
         else:
             self._dc_polling = False
 
-    def _dc_show(self, img, canvas=None):
+    def _dc_show(self, img, canvas=None, box=None):
+        """Shows a 3D frame. With `box` (the screen rectangle that changed, from retexture_region)
+        only that part is copied into the shown image."""
         c = self.dc_cv
         W, H = canvas or (c.winfo_width(), c.winfo_height())
+        ph = self._dc_photo
+        if box is not None and img.size == (W, H) and ph is not None and (ph.width(), ph.height()) == (W, H):
+            x0, y0, x1, y1 = box
+            if x1 > x0 and y1 > y0:
+                part = ImageTk.PhotoImage(img.crop(box))
+                c.tk.call(str(ph), "copy", str(part), "-to", x0, y0)
+            return
         if img.size != (W, H):
             img = img.resize((W, H), Image.NEAREST if img.width * 1.5 < W else Image.BILINEAR)
         ph = self._dc_photo
@@ -1487,35 +1509,79 @@ class DecorateMixin:
             self.dc_flat.config(height=h)
         return k
 
-    def dc_draw_flat(self):
+    def dc_draw_flat(self, region=None):
+        """The flat texture view. With `region` (texture pixels) only that rectangle is redrawn and
+        pasted into the shown image, so dragging updates it on every mouse move. Layer outlines
+        are canvas lines on top (moving them costs almost nothing)."""
         if not hasattr(self, "dc_flat"):
             return
         k = self._dc_flat_k()
-        self.dc_flat.delete("img")
         if not k:
+            self.dc_flat.delete("img", "outline")
+            self._dc_flat_photo = None
             return
         s = self.dc
         W, H = s.size
-        small = s.work.resize((max(1, int(W * k)), max(1, int(H * k))), Image.BILINEAR)
+        sw, sh = max(1, int(W * k)), max(1, int(H * k))
+        photo = self._dc_flat_photo
+        key = (id(s), sw, sh, C["chk1"])
+        if region is None or photo is None or getattr(self, "_dc_flat_key", None) != key \
+                or not self.dc_flat.find_withtag("img"):
+            self._dc_flat_photo = ImageTk.PhotoImage(self._dc_flat_part(s, (0, 0, sw, sh), sw, sh))
+            self._dc_flat_key = key
+            self.dc_flat.delete("img")
+            self.dc_flat.create_image(0, 0, anchor="nw", image=self._dc_flat_photo, tags="img")
+            self.dc_flat.tag_lower("img")
+        else:
+            x0, y0, x1, y1 = region
+            bx0, by0 = max(0, int(math.floor(x0 * sw / W)) - 1), max(0, int(math.floor(y0 * sh / H)) - 1)
+            bx1, by1 = min(sw, int(math.ceil(x1 * sw / W)) + 1), min(sh, int(math.ceil(y1 * sh / H)) + 1)
+            if bx1 > bx0 and by1 > by0:
+                part = ImageTk.PhotoImage(self._dc_flat_part(s, (bx0, by0, bx1, by1), sw, sh))
+                # Tk copies the small image into the shown one in place (works with any Pillow)
+                self.dc_flat.tk.call(str(photo), "copy", str(part), "-to", bx0, by0)
+        self._dc_flat_outlines(k)
+        self._dc_draw_marker()
+
+    def _dc_flat_part(self, s, box, sw, sh):
+        """Rectangle `box` (view pixels) of the flat view: texture scaled down, over the checker
+        color, with the area that doesn't show on the deck dimmed."""
+        W, H = s.size
+        bx0, by0, bx1, by1 = box
+        fx, fy = W / sw, H / sh
+        # cut the area out first (with room for the filter): Pillow would otherwise convert the
+        # whole texture before resizing even a small rectangle
+        m = int(math.ceil(max(fx, fy))) + 2
+        cx0, cy0 = max(0, int(bx0 * fx) - m), max(0, int(by0 * fy) - m)
+        cx1, cy1 = min(W, int(math.ceil(bx1 * fx)) + m), min(H, int(math.ceil(by1 * fy)) + m)
+        src = s.work if (cx0, cy0, cx1, cy1) == (0, 0, W, H) else s.work.crop((cx0, cy0, cx1, cy1))
+        small = src.resize((bx1 - bx0, by1 - by0), Image.BILINEAR,
+                           box=(bx0 * fx - cx0, by0 * fy - cy0, bx1 * fx - cx0, by1 * fy - cy0))
         small = Image.alpha_composite(Image.new("RGBA", small.size, _rgb(C["chk1"])[:3] + (255,)), small)
         if self._dc_mask is not None:
+            # dim what doesn't show on the deck: blended on top, so the result stays fully opaque
+            # (a partly transparent image would let old content show through when pasted)
             mk = getattr(self, "_dc_mask_small", None)
-            if mk is None or mk[0] != (id(self._dc_mask), small.size):
-                inv = self._dc_mask.resize(small.size, Image.BILINEAR).point(lambda v: 255 - v)
-                mk = self._dc_mask_small = ((id(self._dc_mask), small.size), inv,
-                                            Image.new("RGBA", small.size, (0, 0, 0, 150)))
-            small.paste(mk[2], (0, 0), mk[1])
-        if self.dc_mode.get() == "place":
-            d = ImageDraw.Draw(small)
-            for L in s.layers:
-                if L.visible:
-                    pts = L.corners(W, H, k)
-                    on = L is s.sel
-                    d.line(pts + [pts[0]], fill=_rgb(C["accent"] if on else C["muted"])[:3], width=2 if on else 1)
-        self._dc_flat_photo = ImageTk.PhotoImage(small)
-        self.dc_flat.create_image(0, 0, anchor="nw", image=self._dc_flat_photo, tags="img")
-        self.dc_flat.tag_lower("img")
-        self._dc_draw_marker()
+            if mk is None or mk[0] != (id(self._dc_mask), (sw, sh)):
+                shade = Image.new("RGBA", (sw, sh), (0, 0, 0, 0))
+                shade.putalpha(self._dc_mask.resize((sw, sh), Image.BILINEAR).point(lambda v: (255 - v) * 150 // 255))
+                mk = self._dc_mask_small = ((id(self._dc_mask), (sw, sh)), shade)
+            small = Image.alpha_composite(small, mk[1].crop(box))
+        return small
+
+    def _dc_flat_outlines(self, k):
+        f = self.dc_flat
+        f.delete("outline")
+        s = self.dc
+        if s is None or self.dc_mode.get() != "place":
+            return
+        W, H = s.size
+        for L in s.layers:
+            if L.visible:
+                on = L is s.sel
+                pts = [c for xy in L.corners(W, H, k) for c in xy]
+                f.create_polygon(*pts, fill="", outline=C["accent"] if on else C["muted"],
+                                 width=2 if on else 1, tags="outline")
 
     def _dc_draw_marker(self):
         if not hasattr(self, "dc_flat"):
@@ -1660,12 +1726,16 @@ class DecorateMixin:
                                    ("Saved. The layers stay editable." if s.layers else
                                     "Drag stickers onto the board, or pick a base texture."))
             self.dc_base_lbl.config(text=basetex.label_of(s.base_key))
-            try:
-                pv = s.base_img.convert("RGB").resize((64, 14), Image.LANCZOS)
-                self._dc_base_photo = ImageTk.PhotoImage(pv)
-                self.dc_base_thumb.config(image=self._dc_base_photo)
-            except Exception:
-                pass
+            # the small base preview only changes with the base itself (not while dragging stickers)
+            key = (id(s.base_img), s.base_key, s.tint, round(s.tint_strength, 3), str(self.dc_base_thumb))
+            if getattr(self, "_dc_base_key", None) != key:
+                try:
+                    pv = s.base_img.convert("RGB").resize((64, 14), Image.LANCZOS)
+                    self._dc_base_photo = ImageTk.PhotoImage(pv)
+                    self.dc_base_thumb.config(image=self._dc_base_photo)
+                    self._dc_base_key = key
+                except Exception:
+                    pass
         mode = self.dc_mode.get()
         self.dc_hint.config(text="drag sticker · right-drag rotate · wheel scale · click a part to recolor"
                             if mode == "place" else "drag rotate · wheel zoom · click a part to recolor")

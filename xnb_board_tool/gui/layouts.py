@@ -798,7 +798,20 @@ class LayoutsMixin:
     def open_settings(self):
         SettingsDialog(base.root, self)
 
-    def apply_settings(self, layout, theme):
+    def apply_settings(self, layout, theme, gpu=None):
+        if gpu is not None and gpu != bool(SETTINGS.get("gpu3d", True)):
+            from ..board3d import set_gpu_enabled
+            SETTINGS["gpu3d"] = gpu
+            save_settings(SETTINGS)
+            set_gpu_enabled(gpu, retry=gpu)           # ticking it again also retries after a failure
+            self._v3_info = None                      # next frames come from the other renderer
+            self.v3_schedule()
+            if self.tab_var.get() == "decor":
+                self.dc_render()
+            from .. import gpu3d
+            self.set_status("3D preview: " + ("graphics card (GPU)" if gpu else
+                            "processor (CPU)" + (" \u00b7 restart the tool to free the graphics driver's memory"
+                                                 if gpu3d.existing() is not None else "")))
         if layout == SETTINGS.get("layout") and theme == SETTINGS.get("theme"):
             return
         SETTINGS["layout"], SETTINGS["theme"] = layout, theme
