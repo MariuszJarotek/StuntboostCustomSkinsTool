@@ -1,6 +1,6 @@
 # XNB Board Texture Tool
 
-A small desktop tool for swapping skateboard textures in **STUNTBOOST** (and other MonoGame / XNA games that store images in `.xnb` files).
+A small desktop tool for swapping skateboard textures in **STUNTBOOST** (and other MonoGame / XNA games that store images in `.xnb` files). Tool has been fully coded by Claude AI but functionality and UI has been designed by Me
 
 Pick a board, drop in any PNG or JPG, choose the board's colors, and the tool writes a game-ready `.xnb` for you. Backups and one-click revert are built in.
 
