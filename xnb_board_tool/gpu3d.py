@@ -13,6 +13,8 @@ Other systems use the CPU renderer.
 """
 from __future__ import annotations
 
+from .i18n import _
+
 import ctypes as C
 import os
 import queue
@@ -87,6 +89,9 @@ _SOFTWARE = ("llvmpipe", "softpipe", "swrast", "software rasterizer", "gdi gener
 
 
 class GpuError(RuntimeError):
+    """The graphics card cannot be used (no driver, too old OpenGL, a driver error...). The app falls back to the
+    CPU renderer and shows the message.
+    """
     pass
 
 
@@ -94,6 +99,7 @@ class _GL:
     """OpenGL functions, looked up through the context's get_proc."""
 
     def __init__(self, get_proc):
+        """Looks up every OpenGL function the renderer uses (see _SIGS); raises GpuError when one is missing."""
         for name, (res, args) in _SIGS.items():
             addr = get_proc(name)
             if not addr:
@@ -106,6 +112,9 @@ class _WglContext:
     """Windows: a hidden window with an OpenGL context (owned by the GPU thread)."""
 
     def __init__(self):
+        """Creates a hidden window and an OpenGL 3.3 core context on it with WGL (Windows). Raises GpuError when
+        the driver offers no such context.
+        """
         from ctypes import wintypes as W
         self.W = W
         user32 = C.WinDLL("user32", use_last_error=True)
@@ -119,12 +128,14 @@ class _WglContext:
         user32.DefWindowProcW.argtypes = [W.HWND, W.UINT, W.WPARAM, W.LPARAM]
 
         class WNDCLASSW(C.Structure):
+            """The Win32 WNDCLASSW structure (for registering the hidden window's class)."""
             _fields_ = [("style", W.UINT), ("lpfnWndProc", WNDPROC), ("cbClsExtra", C.c_int),
                         ("cbWndExtra", C.c_int), ("hInstance", W.HINSTANCE), ("hIcon", W.HICON),
                         ("hCursor", W.HANDLE), ("hbrBackground", W.HBRUSH),
                         ("lpszMenuName", W.LPCWSTR), ("lpszClassName", W.LPCWSTR)]
 
         class PFD(C.Structure):
+            """The Win32 PIXELFORMATDESCRIPTOR structure (the window's pixel format)."""
             _fields_ = [("nSize", W.WORD), ("nVersion", W.WORD), ("dwFlags", W.DWORD),
                         ("iPixelType", C.c_ubyte), ("cColorBits", C.c_ubyte)] + \
                        [(n, C.c_ubyte) for n in (
@@ -198,6 +209,9 @@ class _WglContext:
         self._msg = W.MSG()
 
     def get_proc(self, name: str):
+        """The address of an OpenGL function: wglGetProcAddress for newer functions, opengl32.dll for the OpenGL
+        1.1 ones it does not return.
+        """
         b = name.encode()
         addr = self.gl.wglGetProcAddress(b)
         if addr in (None, 0, 1, 2, 3, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
@@ -216,6 +230,9 @@ class _EglContext:
     """Linux: an off-screen EGL context (works with Mesa and vendor drivers, with or without X)."""
 
     def __init__(self):
+        """Creates an off-screen OpenGL 3.3 core context with EGL (Linux): tries the default display, then Mesa's
+        surfaceless platform. Raises GpuError when none works.
+        """
         egl = None
         for lib in ("libEGL.so.1", "libEGL.so"):
             try:
@@ -278,6 +295,7 @@ class _EglContext:
                 pass
 
     def get_proc(self, name: str):
+        """The address of an OpenGL function through eglGetProcAddress, falling back to libGL's own symbols."""
         addr = self.egl.eglGetProcAddress(name.encode())
         if not addr and self._libgl is not None:
             try:
@@ -287,10 +305,12 @@ class _EglContext:
         return addr
 
     def pump(self):
+        """Nothing to do on Linux (Windows needs its hidden window's messages handled)."""
         pass
 
 
 def _version(get_proc) -> tuple:
+    """The OpenGL version of the current context as (major, minor); (0, 0) when it cannot be read."""
     f = _FT(C.c_char_p, C.c_uint)(get_proc("glGetString"))
     v = (f(GL_VERSION) or b"").decode("ascii", "replace")
     m = re.search(r"(\d+)\.(\d+)", v)
@@ -391,13 +411,16 @@ class GpuRenderer:
     """Owns the OpenGL thread; render() can be called from any thread."""
 
     def __init__(self):
+        """Starts the GPU thread, waits (up to 15 s) for it to set up OpenGL, then runs a self test. Raises
+        GpuError (or the setup's error) when the card cannot be used.
+        """
         self._q: queue.Queue = queue.Queue()
         self._ready = threading.Event()
         self._err: Optional[BaseException] = None
         self.name = ""
         threading.Thread(target=self._main, name="xnb-gpu", daemon=True).start()
         if not self._ready.wait(15):
-            raise GpuError("the graphics driver did not respond")
+            raise GpuError(_("the graphics driver did not respond"))
         if self._err is not None:
             raise self._err
         self._self_test()
@@ -425,11 +448,14 @@ class GpuRenderer:
 
     # -- the GPU thread
     def _main(self):
+        """The GPU thread: creates the context and the shaders, then runs the jobs that _call() queues, one at a
+        time, keeping the window's messages flowing in between.
+        """
         try:
             self.ctx = _WglContext() if _WIN else _EglContext()
             ver = _version(self.ctx.get_proc)
             if ver < (3, 3):
-                raise GpuError(f"OpenGL {ver[0]}.{ver[1]} (3.3 needed)")
+                raise GpuError(_("OpenGL {version} (3.3 needed)", version=f"{ver[0]}.{ver[1]}"))
             self.gl = _GL(self.ctx.get_proc)
             self._setup()
         except BaseException as e:      # noqa: BLE001 - reported to the caller
@@ -452,16 +478,21 @@ class GpuRenderer:
             self.ctx.pump()
 
     def _call(self, fn, *args):
+        """Runs fn(*args) on the GPU thread and returns its result (or raises its error). Gives up with GpuError
+        after 30 s.
+        """
         box, ev = [], threading.Event()
         self._q.put((fn, args, box, ev))
         if not ev.wait(30):
-            raise GpuError("the graphics driver stopped responding")
+            raise GpuError(_("the graphics driver stopped responding"))
         if isinstance(box[0], BaseException):
             raise box[0]
         return box[0]
 
     # -- GL helpers (GPU thread only)
     def _program(self, vs, fs):
+        """Compiles and links a vertex + fragment shader pair; raises GpuError with the driver's log on failure.
+        """
         g = self.gl
         prog = g.glCreateProgram()
         for kind, src in ((GL_VERTEX_SHADER, vs), (GL_FRAGMENT_SHADER, fs)):
@@ -481,6 +512,7 @@ class GpuRenderer:
         return prog
 
     def _log(self, obj, getiv, getlog):
+        """The info log of a shader or program (for error messages)."""
         n = C.c_int()
         getiv(obj, GL_INFO_LOG_LENGTH, C.byref(n))
         buf = C.create_string_buffer(max(1, n.value))
@@ -488,11 +520,13 @@ class GpuRenderer:
         return buf.value.decode("utf-8", "replace").strip()
 
     def _gen(self, fn):
+        """Calls a glGen* function for one object and returns its id."""
         v = C.c_uint()
         fn(1, C.byref(v))
         return v.value
 
     def _tex(self, internal, fmt, typ, W, H, data=None):
+        """Creates a 2D texture with nearest filtering and clamped edges, optionally filled with data."""
         g = self.gl
         t = self._gen(g.glGenTextures)
         g.glBindTexture(GL_TEXTURE_2D, t)
@@ -503,13 +537,16 @@ class GpuRenderer:
         return t
 
     def _setup(self):
+        """Sets up everything once: refuses software OpenGL (unless XNB_GPU_ALLOW_SOFTWARE=1), builds both shader
+        programs, the vertex buffer and the board texture, and reads the maximum texture size.
+        """
         g = self.gl
         self.name = (g.glGetString(GL_RENDERER) or b"OpenGL").decode("utf-8", "replace").strip()
         # software OpenGL (no real driver) runs on the processor anyway: the CPU renderer is
         # tuned for that, so it is used instead. XNB_GPU_ALLOW_SOFTWARE=1 allows it (for testing).
         if any(w in self.name.lower() for w in _SOFTWARE) and \
                 os.environ.get("XNB_GPU_ALLOW_SOFTWARE", "") in ("", "0"):
-            raise GpuError(f"no graphics card driver ({self.name} is software OpenGL)")
+            raise GpuError(_("no graphics card driver ({name} is software OpenGL)", name=self.name))
         self.p1 = self._program(_VS1, _FS1)
         self.p2 = self._program(_VS2, _FS2)
         self.u1 = {n: g.glGetUniformLocation(self.p1, n.encode()) for n in ("u_size", "u_tex", "u_range")}
@@ -536,6 +573,9 @@ class GpuRenderer:
         self._check("setup")
 
     def _targets(self, W, H):
+        """Makes (or remakes, when the size changes) the off-screen render targets for a W x H frame: pass 1 writes
+        colour, texel and depth; pass 2 writes the final frame, texel, part id, shade and outline.
+        """
         if self.size == (W, H):
             return
         g = self.gl
@@ -565,15 +605,19 @@ class GpuRenderer:
         self.size = (W, H)
 
     def _check(self, where):
+        """Raises GpuError when OpenGL reported an error (`where` names the step)."""
         err = self.gl.glGetError()
         if err:
             raise GpuError(f"OpenGL error 0x{err:x} ({where})")
 
     def _render(self, verts, texa, W, H, bg, outline, thr, near, far, want_info):
+        """Draws one frame on the GPU thread: uploads the texture and triangles, pass 1 rasterises the board, pass
+        2 adds the background and outline, then reads the results back into numpy arrays (see render()).
+        """
         import numpy as np
         g = self.gl
         if max(W, H) > self.max_size or max(texa.shape[:2]) > self.max_size:
-            raise GpuError("image larger than the graphics card allows")
+            raise GpuError(_("image larger than the graphics card allows"))
         self._targets(W, H)
         th, tw = texa.shape[:2]
         g.glActiveTexture(GL_TEXTURE0)
@@ -620,6 +664,7 @@ class GpuRenderer:
         g.glActiveTexture(GL_TEXTURE0)
         # read back (each straight into the numpy array the app keeps)
         def read(k, shape, dtype, fmt, typ):
+            """Reads one render target back into a new numpy array of the given shape and type."""
             arr = np.empty(shape, dtype)
             g.glReadBuffer(_ATT[k])
             g.glReadPixels(0, 0, W, H, fmt, typ, arr.ctypes.data)
@@ -657,10 +702,10 @@ def get() -> GpuRenderer:
     with _lock:
         if _renderer is None:
             if not _WIN and not sys.platform.startswith("linux"):
-                raise GpuError("not supported on this system")
+                raise GpuError(_("not supported on this system"))
             mark = crash_marker
             if mark is not None and mark.exists():
-                raise GpuError("the graphics driver crashed the program last time")
+                raise GpuError(_("the graphics driver crashed the program last time"))
             try:
                 if mark is not None:
                     mark.parent.mkdir(parents=True, exist_ok=True)
@@ -688,6 +733,7 @@ def clear_crash_marker() -> None:
 
 
 def existing() -> Optional[GpuRenderer]:
+    """The GPU renderer if it was already started, else None (does not start it)."""
     return _renderer
 
 

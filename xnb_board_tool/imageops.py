@@ -13,6 +13,9 @@ from PIL import Image, ImageDraw
 # --------------------------------------------------------------------------
 @dataclass
 class Adjust:
+    """How a new image is placed on a texture (what the Adjust window edits): the fit mode, extra zoom, rotation,
+    flips, where the image's centre sits and an optional fill colour for the uncovered area.
+    """
     mode: str = "fill"          # 'fill' (cover), 'fit' (contain) or 'stretch'
     zoom: float = 1.0           # multiplier on top of the mode's scale
     angle: float = 0.0          # degrees, clockwise on screen
@@ -24,6 +27,7 @@ class Adjust:
 
 
 def _trig(angle: float):
+    """cos and sin of an angle in degrees, exact for multiples of 90 so straight images stay pixel-perfect."""
     a = angle % 360
     if a % 90 == 0:             # exact for right angles (no 1e-17 drift)
         return {0: (1, 0), 90: (0, 1), 180: (-1, 0), 270: (0, -1)}[int(a)]

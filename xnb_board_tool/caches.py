@@ -22,6 +22,9 @@ class TextureCache:
     def __init__(self, size: int = 12, max_bytes: int = 24 << 20, keep: int = 2):
         # bounded by memory, not only by count: 12 full boards would be ~40 MB, while small
         # thumbnails cost almost nothing; the newest `keep` entries always stay
+        """A cache of decoded textures limited both by count (`size`) and by memory (`max_bytes`); the newest
+        `keep` entries always stay even when they are big.
+        """
         self.size, self.max_bytes, self.keep = size, max_bytes, keep
         self.lock = threading.Lock()
         self.data: "dict[str, tuple]" = {}
@@ -29,10 +32,14 @@ class TextureCache:
 
     @staticmethod
     def _sig(path):
+        """A file's signature (size, modification time): a changed file no longer matches its cached entry."""
         st = os.stat(path)
         return (st.st_size, st.st_mtime_ns)
 
     def get(self, path) -> Optional[TexData]:
+        """The cached TexData of a file, or None when it is not cached or the file has changed since. A hit moves
+        the entry to the newest end.
+        """
         if not path:
             return None
         key = _norm(path)
@@ -60,6 +67,9 @@ class TextureCache:
         return t
 
     def put(self, path, tex: TexData, sig=None):
+        """Caches a decoded texture (with the file's signature, or the given one), then drops the oldest entries
+        until the count and memory limits are met.
+        """
         key = _norm(path)
         try:
             sig = sig or self._sig(path)
@@ -92,6 +102,7 @@ class TextureCache:
             self.invalidate(path)
 
     def invalidate(self, path):
+        """Forgets the cached texture of a file (after the tool wrote it)."""
         if path:
             with self.lock:
                 self.data.pop(_norm(path), None)
@@ -113,12 +124,16 @@ class CardCache:
     VERSION = 1
 
     def __init__(self):
+        """An empty card cache, not yet attached to a content folder."""
         self.lock = threading.Lock()
         self.dir: Optional[Path] = None
         self.index: dict = {}
         self.dirty = False
 
     def attach(self, folder: Path):
+        """Uses the on-disk card cache of a content folder (in the user's cache folder) and loads its index; an
+        index from another cache version is ignored.
+        """
         self.dir = user_cache_dir(folder)
         self.index, self.dirty = {}, False
         try:
@@ -130,6 +145,8 @@ class CardCache:
 
     @staticmethod
     def sig(path):
+        """A source file's signature as stored in the index ([size, mtime]), or None when the file is missing.
+        """
         if not path:
             return None
         try:
@@ -139,6 +156,9 @@ class CardCache:
             return None
 
     def card(self, name: str, src_sig) -> Optional[Image.Image]:
+        """The cached card image (the deck picture used on the Wall) of a board, if it was made from the current
+        version of its source file; else None.
+        """
         with self.lock:
             e = self.index.get(name)
         if not e or src_sig is None or e.get("src") != src_sig or not self.dir:
@@ -151,6 +171,9 @@ class CardCache:
             return None
 
     def palette(self, name: str, tex_sig) -> Optional[list]:
+        """The cached four deck colours of a board, if they were read from the current version of its texture; else
+        None.
+        """
         with self.lock:
             e = self.index.get(name)
         if not e or tex_sig is None or e.get("tex") != tex_sig or not e.get("pal"):
@@ -158,6 +181,9 @@ class CardCache:
         return [tuple(c) for c in e["pal"]]
 
     def store(self, name: str, src_sig=None, card: Optional[Image.Image] = None, tex_sig=None, pal=None):
+        """Remembers a board's card image (written as card_<name>.png) and/or its colours, each with the signature
+        of the file it came from.
+        """
         if not self.dir:
             return
         with self.lock:
@@ -178,6 +204,7 @@ class CardCache:
             self.dirty = True
 
     def save(self):
+        """Writes the index when something changed (atomically; errors are ignored)."""
         if not self.dir or not self.dirty:
             return
         try:

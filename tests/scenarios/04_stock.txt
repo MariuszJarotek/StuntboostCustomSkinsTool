@@ -1,0 +1,20 @@
+# The Stock view compares the deck with its stock copy and follows the deck on the bench right away.
+kids = list(app.tree.get_children()); app.select(int(kids[0])); app.shop_show("bench")
+---
+app.save_all_defaults(confirm=False)
+---
+app.pal[1] = (0, 179, 164); app.pal[0] = (255, 255, 255); app._draw_palette(); app._shop_tool_set("stock")
+---
+SHOT stock_compare.png
+assert app._shop_stock_for == app.tex_path, "Stock draws the deck on the bench"
+kids = list(app.tree.get_children()); app.select(int(kids[3]))
+---
+assert app._shop_stock_for == app.tex_path, "Stock follows a new deck without a resize or a second click"
+app._shop_tool_set("general"); kids = list(app.tree.get_children()); app.select(int(kids[5]))
+---
+app._shop_tool_set("stock")
+---
+assert app._shop_stock_for == app.tex_path
+app._shop_cmp_mode.set("diff"); app._shop_draw_stock()
+---
+SHOT stock_diff.png

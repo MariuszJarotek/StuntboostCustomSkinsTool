@@ -1,6 +1,8 @@
 """3D board preview: loads the game's skateboard model and renders it (numpy)."""
 from __future__ import annotations
 
+from .i18n import _
+
 import json
 import math
 import struct
@@ -40,6 +42,9 @@ def find_board_model(board_folder: Optional[Path]) -> Optional[tuple]:
 
 
 def _read_model_buffer(path: Path) -> bytes:
+    """The binary buffer of the board model: Board.bin.xnb unwrapped (an XNB byte array), or the raw file. Raises
+    XnbError for a damaged file.
+    """
     data = Path(path).read_bytes()
     if data[:3] != b"XNB":
         return data
@@ -53,6 +58,7 @@ def _read_model_buffer(path: Path) -> bytes:
 
 
 def _quat_mat(q):
+    """A rotation quaternion (x, y, z, w) as a 3 x 3 matrix."""
     x, y, z, w = q
     return [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
             [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
@@ -70,6 +76,8 @@ def load_board_model(model_path: Path, buffer_path: Path) -> dict:
     buf = _read_model_buffer(buffer_path)
 
     def acc(i):
+        """Reads a glTF accessor out of the model buffer as a numpy array (checked against the buffer's size).
+        """
         a = g["accessors"][i]
         v = g["bufferViews"][a["bufferView"]]
         dt = {5126: np.float32, 5123: np.uint16, 5125: np.uint32, 5121: np.uint8}[a["componentType"]]
@@ -84,6 +92,9 @@ def load_board_model(model_path: Path, buffer_path: Path) -> dict:
     parts = {}
 
     def visit(i, mat):
+        """Walks the glTF node tree, combining each node's transform with its parent's, and keeps the vertices, UVs
+        and triangles of the deck parts the preview draws.
+        """
         nd = nodes[i]
         m = np.eye(4)
         if "matrix" in nd:
@@ -380,15 +391,15 @@ def gpu_active() -> bool:
 def gpu_status() -> tuple:
     """(using_gpu, text) for the settings window and the 3D note."""
     if _gpu_failed:
-        return False, f"CPU (graphics card not usable: {_gpu_failed})"
+        return False, _("CPU (graphics card not usable: {reason})", reason=_gpu_failed)
     if _ENV_OFF:
-        return False, "CPU (GPU turned off by XNB_NO_GPU)"
+        return False, _("CPU (GPU turned off by XNB_NO_GPU)")
     if not _gpu_on:
-        return False, "CPU (GPU turned off)"
+        return False, _("CPU (GPU turned off)")
     from . import gpu3d
     r = gpu3d.existing()
     if r is None:
-        return True, "GPU (starts with the first 3D frame)"
+        return True, _("GPU (starts with the first 3D frame)")
     return True, f"GPU ({r.name})"
 
 

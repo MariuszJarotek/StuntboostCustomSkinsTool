@@ -1,0 +1,28 @@
+# Smoke test: every layout and theme builds, and the Wall filters work.
+# Lines starting with # are Python comments, so they are fine inside a step.
+assert app.boards, "the copied game has boards"
+app.apply_settings("shop", "concrete")
+---
+app.shop_show("wall")
+---
+SHOT layouts_wall_concrete.png
+app._shop_set_filter("none")
+---
+# the copy leaves out stock copies, so every deck is "no backup"
+assert app._status_filter == "none"
+app._shop_set_filter("all")
+---
+for layout in ("studio", "gallery", "classic"):
+    for theme in ("dark", "light"):
+        app.apply_settings(layout, theme)
+        base.root.update()
+---
+SHOT layouts_classic_light.png
+app.apply_settings("shop", "blueprint")
+---
+kids = [int(k) for k in app.tree.get_children()]
+app.select(kids[3]); app.shop_show("bench")
+---
+SHOT layouts_bench_blueprint.png
+assert app.sel == kids[3]
+app.apply_settings("shop", "concrete")

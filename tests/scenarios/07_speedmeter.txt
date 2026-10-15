@@ -1,0 +1,35 @@
+# The Speedmeter tab of the Skate shop layout: tools, then writing to the game and reverting.
+app.tab_var.set("speed"); app.switch_tab()
+---
+assert len(app.sm_tex) == 5, "needs the five speedometer textures (Content/Textures/HUD/SpeedMeter)"
+SHOT speed_bench.png
+app.sms_tool("bartex")
+---
+assert app._sm_pending() == []
+app.sm_rc_preset("ice")
+---
+assert app._sm_pending() == ["bar texture"], app._sm_pending()
+app.sms_tool("text")
+# texts the game surely does not have, so writing them must change the files
+app._tx_vars["cms"].set("TEST CMS"); app._tx_vars["mms"].set("TEST MMS")
+---
+assert app._sm_pending() == ["bar texture", "unit text"], app._sm_pending()
+SHOT speed_text.png
+# write both to the game (yes to every question), remembering the pixels from before
+from tkinter import messagebox
+messagebox.askyesno = lambda *a, **k: True
+before = {k: app.sm_tex[k].img.tobytes() for k in ("Texture", "CMS", "MMS")}
+app.sm_write_all()
+---
+assert app._sm_pending() == [], app._sm_pending()
+changed = {k: app.sm_tex[k].img.tobytes() != before[k] for k in ("Texture", "CMS", "MMS")}
+assert all(changed.values()), changed
+app._sms_pick("Texture"); app.sm_revert()          # one revert per step, like clicks: each reloads the files
+---
+app._sms_pick("CMS"); app.sm_revert()
+---
+app._sms_pick("MMS"); app.sm_revert()
+---
+back = {k: app.sm_tex[k].img.tobytes() == before[k] for k in ("Texture", "CMS", "MMS")}
+assert all(back.values()), back
+app.tab_var.set("boards"); app.switch_tab()

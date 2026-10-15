@@ -1,6 +1,8 @@
 """Default snapshots (save / revert) and the board status (matches default, modified)."""
 from __future__ import annotations
 
+from .i18n import _
+
 import datetime
 import hashlib
 import io
@@ -33,16 +35,25 @@ PNG_MAX_RATIO = 0.85
 
 
 def _def_paths(path: Path):
+    """Where the stock copy of a file lives: (the _board_defaults folder, the metadata .json, the .default.png, the
+    .default.xnbdef).
+    """
     d = Path(path).parent / DEF_DIR
     return d, d / (Path(path).name + ".json"), \
         d / (Path(path).name + ".default.png"), d / (Path(path).name + ".default.xnbdef")
 
 
 def pixel_hash(img: Image.Image) -> str:
+    """SHA-256 of an image's RGBA pixels: two textures with the same pixels have the same hash whatever their file
+    bytes.
+    """
     return hashlib.sha256(img.convert("RGBA").tobytes()).hexdigest()
 
 
 def load_default_meta(path: Path) -> Optional[dict]:
+    """The stock metadata of a file (when it was saved, how it is stored, its pixel hash), or None when no stock
+    copy exists.
+    """
     d, meta_p, png_p, xnb_p = _def_paths(path)
     try:
         meta = json.loads(meta_p.read_text("utf-8"))
@@ -53,6 +64,10 @@ def load_default_meta(path: Path) -> Optional[dict]:
 
 
 def set_default(path: Path, tex: Optional[TexData] = None) -> dict:
+    """Saves the file as it is now as its stock copy in _board_defaults: QOI textures as a PNG of their pixels
+    when that is not much bigger than the .xnb (PNG_MAX_RATIO), everything else as an exact copy of the .xnb.
+    Writes the metadata (date, storage, sizes, pixel hash) next to it and returns it.
+    """
     path = Path(path)
     data = path.read_bytes()
     tex = tex or load_texture(path)
@@ -85,11 +100,28 @@ def set_default(path: Path, tex: Optional[TexData] = None) -> dict:
     return meta
 
 
+def load_default_image(path: Path) -> Optional[Image.Image]:
+    """The saved default (stock) image of a texture, or None when there is none."""
+    meta = load_default_meta(path)
+    if not meta:
+        return None
+    _d, _m, png_p, xnb_p = _def_paths(path)
+    if meta["storage"] == "xnb":
+        return load_texture(xnb_p).img
+    img = Image.open(png_p)
+    img.load()
+    return img.convert("RGBA")
+
+
 def revert_to_default(path: Path) -> dict:
+    """Puts a file back to its stock copy: the exact saved bytes for .xnb snapshots (checked first), or the stock
+    pixels encoded as QOI for PNG copies. Written atomically; returns the stock metadata. Raises XnbError when
+    there is no stock copy.
+    """
     path = Path(path)
     meta = load_default_meta(path)
     if not meta:
-        raise XnbError("no default has been set for this file")
+        raise XnbError(_("no default has been set for this file"))
     d, _m, png_p, xnb_p = _def_paths(path)
     if meta["storage"] == "xnb":
         snapshot = xnb_p.read_bytes()
@@ -107,12 +139,14 @@ class HashCache:
     """Remembers pixel hashes by (file size, mtime) so status checks stay fast."""
 
     def __init__(self):
+        """An empty cache, not yet attached to a folder."""
         self.lock = threading.Lock()
         self.data: dict = {}
         self.file: Optional[Path] = None
         self.dirty = False
 
     def attach(self, root: Path):
+        """Uses the cache file of a content folder (loading what it holds)."""
         self.file = Path(root) / DEF_DIR / "_hash_cache.json"
         try:
             self.data = json.loads(self.file.read_text("utf-8"))
@@ -122,10 +156,12 @@ class HashCache:
 
     @staticmethod
     def _sig(path):
+        """A file's signature for the cache: its size and modification time."""
         st = os.stat(path)
         return [st.st_size, st.st_mtime_ns]
 
     def get(self, path) -> Optional[str]:
+        """The cached pixel hash of a file, or None when it is unknown or the file has changed since."""
         try:
             sig = self._sig(path)
         except OSError:
@@ -135,6 +171,7 @@ class HashCache:
         return e["h"] if e and e.get("sig") == sig else None
 
     def put(self, path, h: str):
+        """Stores a file's pixel hash with its current signature."""
         try:
             sig = self._sig(path)
         except OSError:
@@ -144,6 +181,7 @@ class HashCache:
             self.dirty = True
 
     def save(self):
+        """Writes the cache to disk when something changed (atomically; errors are ignored)."""
         if not self.file or not self.dirty:
             return
         try:
@@ -178,6 +216,9 @@ def file_status(path: Optional[Path], cache: HashCache,
 
 
 def board_status(statuses) -> Optional[str]:
+    """One status for a board from the statuses of its files: 'mod' when any file differs from stock, else 'none'
+    when one has no stock, else 'def'; None while unknown.
+    """
     s = [x for x in statuses if x]
     if not s:
         return None

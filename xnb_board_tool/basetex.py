@@ -5,6 +5,8 @@ textures are images in the "textures" folder next to the program, resized to fit
 """
 from __future__ import annotations
 
+from .i18n import N_, _
+
 import math
 import random
 from pathlib import Path
@@ -18,19 +20,25 @@ ORIGINAL = "original"               # the board's own art
 
 
 def _canvas(W, H, c=(14, 14, 16)):
+    """A new RGB image of W x H filled with colour c, and a drawing context for it."""
     im = Image.new("RGB", (W, H), c)
     return im, ImageDraw.Draw(im)
 
 
 def _k(W, H):                       # pattern scale relative to the game's 1920 x 432 boards
+    """The pattern scale for a board of this height, relative to the game's 1920 x 432 textures, so patterns look
+    the same at any size.
+    """
     return max(0.1, H / 432.0)
 
 
 def black(W, H):
+    """Base texture: plain near-black."""
     return _canvas(W, H)[0]
 
 
 def black_stripes(W, H):
+    """Base texture: black with slanted dark grey stripes."""
     im, d = _canvas(W, H)
     k = _k(W, H)
     step, w = 64 * k, 22 * k
@@ -42,6 +50,7 @@ def black_stripes(W, H):
 
 
 def carbon(W, H):
+    """Base texture: a woven carbon-fibre check."""
     im, d = _canvas(W, H, (18, 18, 20))
     s = max(4, int(16 * _k(W, H)))
     for y in range(0, H, s):
@@ -56,6 +65,7 @@ def carbon(W, H):
 
 
 def checker(W, H):
+    """Base texture: a large black and white checkerboard."""
     im, d = _canvas(W, H, (240, 240, 240))
     s = max(4, int(72 * _k(W, H)))
     for y in range(0, H, s):
@@ -66,6 +76,7 @@ def checker(W, H):
 
 
 def blueprint(W, H):
+    """Base texture: dark navy with a blue grid."""
     im, d = _canvas(W, H, (16, 18, 24))
     s = max(4, int(48 * _k(W, H)))
     lw = max(1, int(2 * _k(W, H)))
@@ -77,6 +88,7 @@ def blueprint(W, H):
 
 
 def sunset(W, H):
+    """Base texture: a horizontal gradient from orange through pink to purple."""
     im, d = _canvas(W, H)
     a, b, c = (255, 94, 58), (240, 60, 120), (60, 40, 140)
     for x in range(W):
@@ -90,6 +102,7 @@ def sunset(W, H):
 
 
 def hazard(W, H):
+    """Base texture: yellow and black hazard stripes."""
     im, d = _canvas(W, H, (245, 190, 20))
     k = _k(W, H)
     step, w = 110 * k, 55 * k
@@ -101,12 +114,13 @@ def hazard(W, H):
 
 
 def camo(W, H):
+    """Base texture: green camouflage blobs (always the same pattern), slightly blurred."""
     rnd = random.Random(3)
     im, d = _canvas(W, H, (70, 80, 55))
     k = _k(W, H)
     n = int(70 * (W / max(H, 1)) / (1920.0 / 432.0)) + 10      # same look at any resolution
     for col in ((95, 100, 70), (45, 52, 38), (120, 110, 80), (30, 34, 28)):
-        for _ in range(n):
+        for _i in range(n):
             x, y = rnd.uniform(0, W), rnd.uniform(0, H)
             r = rnd.uniform(30, 90) * k
             pts = [(x + r * math.cos(a) * rnd.uniform(.6, 1.3), y + r * math.sin(a) * rnd.uniform(.6, 1.3))
@@ -116,11 +130,13 @@ def camo(W, H):
 
 
 def grain(W, H):
+    """Base texture: dark noise, like raw grip."""
     noise = Image.effect_noise((W, H), 40).convert("RGB")
     return Image.blend(noise, Image.new("RGB", (W, H), (30, 28, 26)), 0.75)
 
 
 def flames(W, H):
+    """Base texture: rows of red, orange and yellow flames rising from the bottom edge."""
     im, d = _canvas(W, H)
     k = _k(W, H)
     step = max(10, int(150 * k))
@@ -136,17 +152,24 @@ def flames(W, H):
     return im
 
 
+def maple(W, H):
+    """Base texture: maple wood grain (the same wood the worn-edges finish shows)."""
+    from .effects import maple_wood
+    return Image.fromarray(maple_wood(W, H, 7), "RGB")
+
+
 BUILTIN = [
-    ("black", "Black", black), ("black-stripes", "Black stripes", black_stripes),
-    ("carbon", "Carbon", carbon), ("checker", "Checker", checker),
-    ("blueprint", "Blueprint grid", blueprint), ("sunset", "Sunset", sunset),
-    ("hazard", "Hazard", hazard), ("camo", "Camo", camo), ("grain", "Grain", grain),
-    ("flames", "Flames", flames),
+    ("black", N_("Black"), black), ("black-stripes", N_("Black stripes"), black_stripes),
+    ("carbon", N_("Carbon"), carbon), ("checker", N_("Checker"), checker),
+    ("blueprint", N_("Blueprint grid"), blueprint), ("sunset", N_("Sunset"), sunset),
+    ("hazard", N_("Hazard"), hazard), ("camo", N_("Camo"), camo), ("grain", N_("Grain"), grain),
+    ("flames", N_("Flames"), flames), ("maple", N_("Maple wood"), maple),
 ]
 _BY_KEY = {k: (label, f) for k, label, f in BUILTIN}
 
 
 def texture_dir() -> Path:
+    """The folder for the user's own base texture images (next to the program, or a writable fallback)."""
     return _writable_dir(app_dir() / "textures", "textures")
 
 
@@ -179,10 +202,13 @@ def add_user_textures(files) -> tuple:
 
 
 def label_of(key: str) -> str:
+    """The name shown for a base texture key: the board's own art, a built-in texture's translated name, or the
+    file name of a user texture.
+    """
     if key == ORIGINAL:
-        return "Board's own art"
+        return _("Board's own art")
     if key in _BY_KEY:
-        return _BY_KEY[key][0]
+        return _(_BY_KEY[key][0])
     if key.startswith("file:"):
         return Path(key[5:]).stem
     return key

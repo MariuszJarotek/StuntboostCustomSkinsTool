@@ -1,6 +1,8 @@
 """Finding boards in a content folder, and the 4 board-color pixels."""
 from __future__ import annotations
 
+from .i18n import N_, _
+
 import os
 import re
 import struct
@@ -20,6 +22,9 @@ from .xnb import parse_xnb, peek_kind, read_model_json
 # --------------------------------------------------------------------------
 @dataclass
 class Board:
+    """One deck of the game: its name and the files that make it - the 3D model (when the folder has models), the
+    texture (the artwork) and the thumbnail shown in the board shop. Any of the files may be missing.
+    """
     name: str
     model: Optional[Path] = None
     texture: Optional[Path] = None
@@ -30,6 +35,14 @@ THUMB_RE = re.compile(r"thumb|icon|preview", re.I)
 
 
 def scan(root: Path) -> list[Board]:
+    """Finds every board under a content folder (every .xnb is peeked at; other files are skipped).
+
+    1. Pairs: '<name>.xnb' + '<name>Thumbnail.xnb' in the same folder make one board (the STUNTBOOST layout);
+       when any pair is found, only pairs are returned, sorted with numbers in numeric order.
+    2. Otherwise each GLTF model is a board: its texture is the image its JSON names (else the first
+       non-thumbnail texture next to it) and its thumbnail a '...thumb...' texture nearby.
+    3. Otherwise one board per folder of textures.
+    """
     root = Path(root).resolve()
     models, textures = [], []
     for p in sorted(root.rglob("*.xnb")):
@@ -101,6 +114,8 @@ def scan(root: Path) -> list[Board]:
 
 
 def strip_image(img: Image.Image, w: int = 76, h: int = 18) -> Image.Image:
+    """A small landscape preview of a texture (the list rows), the image fitted into w x h on a dark background.
+    """
     out = Image.new("RGBA", (w, h), (42, 44, 49, 255))
     s = min(w / img.width, h / img.height)
     nw, nh = max(1, round(img.width * s)), max(1, round(img.height * s))
@@ -113,10 +128,13 @@ def strip_image(img: Image.Image, w: int = 76, h: int = 18) -> Image.Image:
 #  Board colors: the first 4 pixels of the texture's top row are a palette
 #    (x=0, y=0) border   (x=1, y=0) under   (x=2, y=0) wheels   (x=3, y=0) truck
 # --------------------------------------------------------------------------
-PALETTE_SLOTS = [("border", "Border"), ("under", "Under"), ("wheels", "Wheels"), ("truck", "Truck")]
+PALETTE_SLOTS = [("border", N_("Border")), ("under", N_("Under")), ("wheels", N_("Wheels")), ("truck", N_("Truck"))]
 
 
 def read_palette(img: Image.Image) -> Optional[list]:
+    """The deck's four colours (border, under, wheels, truck): the first pixels of the texture's top row, where the
+    game reads them. None for a too small image.
+    """
     if img.width < len(PALETTE_SLOTS) or img.height < 1:
         return None
     img = img.convert("RGBA")
@@ -124,6 +142,7 @@ def read_palette(img: Image.Image) -> Optional[list]:
 
 
 def apply_palette(img: Image.Image, colors) -> Image.Image:
+    """A copy of the texture with the four deck colours written into the first pixels of its top row."""
     out = img.convert("RGBA").copy()
     for x, c in enumerate(colors[:min(len(PALETTE_SLOTS), out.width)]):
         out.putpixel((x, 0), (int(c[0]), int(c[1]), int(c[2]), 255))
@@ -131,10 +150,12 @@ def apply_palette(img: Image.Image, colors) -> Image.Image:
 
 
 def to_hex(c) -> str:
+    """An RGB colour as '#rrggbb'."""
     return "#%02x%02x%02x" % tuple(c[:3])
 
 
 def parse_color(s: str):
+    """Reads a colour typed by the user: '#rrggbb', 'rrggbb' or 'r, g, b'. Returns an RGB tuple or None."""
     s = s.strip()
     m = re.fullmatch(r"#?([0-9a-fA-F]{6})", s)
     if m:

@@ -1,0 +1,19 @@
+# The Settings page of the Skate shop layout: opens over the content, survives a theme change, closes.
+app.open_settings()
+---
+assert app._shop_settings_is_open()
+SHOT settings_page.png
+app._shop_settings_pick("theme", "blueprint")
+---
+assert app._shop_settings_is_open(), "the page reopens after the window is rebuilt"
+assert "credits" in app._set_secs, "the page ends with the credits"
+app._set_scroll.canvas.yview_moveto(1.0)
+SHOT settings_credits.png
+---
+app._shop_settings_close()
+assert not app._shop_settings_is_open()
+app.open_settings(); app.tab_var.set("speed"); app.switch_tab()
+---
+assert not app._shop_settings_is_open(), "switching tabs closes the page"
+app.tab_var.set("boards"); app.switch_tab()
+app._shop_settings_pick("theme", "concrete")

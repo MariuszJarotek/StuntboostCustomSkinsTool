@@ -1,0 +1,30 @@
+# The deck fan above the bench: clicking a deck, stepping, looping past the ends, the wheel.
+import math
+kids = [int(k) for k in app.tree.get_children()]
+assert len(kids) >= 8, "needs at least 8 boards"
+app.select(kids[3]); app.shop_show("bench")
+---
+SHOT fan_bench.png
+# click the deck two to the right, on its visible lower part
+x, y, a, i = [h for h in app._car_hits if h[3] == kids[5]][0]
+r = math.radians(a)
+class E: pass
+e = E(); e.x = x - 25 * math.sin(r); e.y = y + 25 * math.cos(r)
+app._car_click(e)
+---
+assert app.sel == kids[5], (app.sel, kids[5])
+app.step(1)
+---
+assert app.sel == kids[6]
+app.select(kids[0])
+---
+app.step(-1)
+---
+# the fan loops: before the first deck comes the last
+assert app.sel == kids[-1], (app.sel, kids[-1])
+app.step(1)
+---
+assert app.sel == kids[0]
+app._car_wheel(1)
+---
+assert app.sel == kids[1], app.sel

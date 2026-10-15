@@ -1,6 +1,8 @@
 """HUD speedometer: files, game font and the in-game preview renderer."""
 from __future__ import annotations
 
+from .i18n import N_
+
 import io
 import struct
 from pathlib import Path
@@ -18,11 +20,11 @@ from .xnb import FOURCC, _dds, parse_xnb, read7
 # Reverse-engineered from STUNTBOOST.dll (SE.SpeedMeter.DrawInner) and the
 # Effects/D2/SpeedMeter shader. The HUD is drawn on a 3840 x 2160 virtual screen.
 SPEEDMETER_PARTS = [
-    ("Texture", "Bar texture", "The color/pattern seen through the whole bar (scrolls with speed)"),
-    ("BarBeginning", "Bar beginning", "First section of the bar, above the unit text"),
-    ("Block", "Block", "Repeated every 164 px to make the bar longer"),
-    ("CMS", "CM/S text", "Unit text in normal mode"),
-    ("MMS", "MM/S text", "Unit text in precise mode"),
+    ("Texture", N_("Bar texture"), N_("The color/pattern seen through the whole bar (scrolls with speed)")),
+    ("BarBeginning", N_("Bar beginning"), N_("First section of the bar, above the unit text")),
+    ("Block", N_("Block"), N_("Repeated every 164 px to make the bar longer")),
+    ("CMS", N_("CM/S text"), N_("Unit text in normal mode")),
+    ("MMS", N_("MM/S text"), N_("Unit text in precise mode")),
 ]
 
 
@@ -95,6 +97,9 @@ def _cut_mask(size, ox, oy, region_x, region_y, speed_px):
         m.paste(255, (0, 0, W, H))
         return m
     def x_at(y):   # boundary x (region coords) at region row y
+        """The x position (in region coordinates) of the bar's slanted cut at row y, from the shader's formula for
+        the current speed.
+        """
         sy = y + region_y
         return (speed_px + 590 + ox - 0.4 * (sy - oy - 1956)) - region_x
     ImageDraw.Draw(m).polygon([(0, 0), (x_at(0), 0), (x_at(H), H), (0, H)], fill=255)
@@ -121,18 +126,21 @@ def load_spritefont(path: Path) -> dict:
         tex = Image.open(io.BytesIO(_dds(w, h, FOURCC[fmt], raw))).convert("RGBA")
     else:
         raise XnbError(f"unsupported font texture format {fmt}")
-    for _ in range(max(1, levels)):
+    for _i in range(max(1, levels)):
         sz, = struct.unpack_from("<i", data, p)
         p += 4 + sz
 
     def rlist(p, kind):
+        """Reads one list of a SpriteFont XNB at offset p: characters (UTF-8) for kind 'char', else fixed-size
+        records packed as `kind` (a struct format). Returns (list, offset after it).
+        """
         _t, p = read7(data, p)
         n, = struct.unpack_from("<i", data, p)
         p += 4
         if n < 0 or n > 100000:
             raise XnbError("bad SpriteFont list")
         out = []
-        for _ in range(n):
+        for _i in range(n):
             if kind == "char":
                 b = data[p]
                 ln = 1 if b < 0x80 else 2 if b < 0xE0 else 3 if b < 0xF0 else 4
@@ -173,6 +181,9 @@ def fix_sinkingship_italic(font: dict) -> dict:
 
 
 def find_digit_font(speedmeter_folder: Optional[Path]) -> Optional[Path]:
+    """Finds the game's digit font (Content/Fonts/SinkingShip/VeryBigItalicNumeric.xnb) from the SpeedMeter folder
+    by walking up to the Content folder. None when it is not there.
+    """
     if not speedmeter_folder:
         return None
     content = Path(speedmeter_folder).parents[2] if len(Path(speedmeter_folder).parents) > 2 else None
@@ -196,6 +207,9 @@ def _digit_sprite_font(font: dict, ch: str, right: float, bottom: float):
 
 
 def _digit_font(size):
+    """A stand-in TrueType font for the digits when the game's own digit font is not found (Impact or a similar
+    heavy font, else Pillow's default).
+    """
     from PIL import ImageFont
     for name in ("impact.ttf", "Impact.ttf", "ariblk.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf",
                  "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "Poppins-Bold.ttf"):
@@ -209,10 +223,16 @@ def _digit_font(size):
         return ImageFont.load_default()
 
 
+_UNIT_CACHE: dict = {}          # fast mode: the unit text's layers (they don't change with speed)
+
+
 def render_speedmeter(tex: dict, speed_cms: float, charge_cms: float = 0.0, precise: bool = False,
-                      region=(0, 1780, 3840, 2160), digits=True, font: Optional[dict] = None) -> Image.Image:
+                      region=(0, 1780, 3840, 2160), digits=True, font: Optional[dict] = None,
+                      fast: bool = False) -> Image.Image:
     """Renders the in-game speedometer at virtual 4K resolution (crop = region).
-    tex: {'Texture','BarBeginning','Block','CMS','MMS'} -> straight-alpha RGBA images."""
+    tex: {'Texture','BarBeginning','Block','CMS','MMS'} -> straight-alpha RGBA images.
+    fast: for animation frames (Play run): the black outline is drawn with its outermost offset
+    only, which looks almost the same in a moving preview at a fraction of the cost."""
     rx0, ry0, rx1, ry1 = region
     size = (rx1 - rx0, ry1 - ry0)
     back = tex["Texture"].convert("RGBA")
@@ -223,6 +243,9 @@ def render_speedmeter(tex: dict, speed_cms: float, charge_cms: float = 0.0, prec
     frame = Image.new("RGBA", size, (0, 0, 0, 0))
 
     def shift_for(sp):            # texture scroll, from the shader
+        """How far the bar texture scrolls at speed sp, as the game's shader does it (0.3 px per speed unit, capped
+        at 930).
+        """
         return 930.0 if sp >= 3100 else 0.3 * sp
 
     def layer_for(off, sp, sprites):
@@ -232,12 +255,19 @@ def render_speedmeter(tex: dict, speed_cms: float, charge_cms: float = 0.0, prec
             px, py = int(round(x + off[0])) - rx0, int(round(y + off[1])) - ry0
             if px >= size[0] or py >= size[1] or px + img.width <= 0 or py + img.height <= 0:
                 continue
-            tmp = Image.new("RGBA", size, (0, 0, 0, 0))
-            tmp.paste(img, (px, py))
-            lay = Image.alpha_composite(lay, tmp)
+            # blend the sprite straight into its place (same pixels as compositing a full-size
+            # layer that holds only this sprite, without making one per sprite)
+            sx, sy = max(0, -px), max(0, -py)
+            src = img if (sx, sy) == (0, 0) else img.crop((sx, sy, img.width, img.height))
+            if src.mode != "RGBA":
+                src = src.convert("RGBA")
+            lay.alpha_composite(src, dest=(px + sx, py + sy))
         return lay
 
     def shade(lay, off, sp, black, shift=None):
+        """One HUD sprite as the shader draws it: its alpha cut by the bar's slanted mask, its colour either black
+        (charge blocks) or the bar texture sampled at the scrolled position and multiplied in.
+        """
         a = lay.getchannel("A")
         a = ImageChops.multiply(a, _cut_mask(size, off[0], off[1], rx0, ry0, sp))
         if black:
@@ -258,6 +288,9 @@ def render_speedmeter(tex: dict, speed_cms: float, charge_cms: float = 0.0, prec
     beg, blk = tex["BarBeginning"], tex["Block"]
     unit_sprite = [(unit, (bx, by - unit.height))]
     def bar_sprites(sp):
+        """The sprites that make the bar at speed sp: the bar beginning, then as many blocks as the length needs,
+        each SM_BLOCK_STEP further right. Returns [(image, (x, y))].
+        """
         s = [(beg, (bx, by - beg.height))]
         length = sp + 100
         if length > beg.width:
@@ -296,16 +329,37 @@ def render_speedmeter(tex: dict, speed_cms: float, charge_cms: float = 0.0, prec
     # digits: drawn before the shader's speed is set (default -1: no cut, ~no scroll)
     # unit text: speed = float.MaxValue (no cut, full 930 px scroll); bar: real speed
     BIG = 1e12
-    for off in SM_OUTLINE:                                     # black outline passes
-        lay = layer_for(off, BIG, digit_sprites + unit_sprite)
-        frame = Image.alpha_composite(frame, shade(lay, off, BIG, True))
+    outline = SM_OUTLINE if not fast else [max(SM_OUTLINE, key=lambda o: abs(o[0]) + abs(o[1]))]
+    # the unit text looks the same at every speed: in fast mode (animation frames) its layers are
+    # kept and reused. Its black passes are drawn apart from the digits' (black over black blends
+    # the same either way), so the result is unchanged.
+    ukey = (fast, precise, region, unit.size, hash(unit.tobytes()), hash(back.tobytes()), bw, bh)
+    cached = _UNIT_CACHE.get("key") == ukey
+    if not cached and fast:
+        _UNIT_CACHE.clear()
+    for off in outline:                                        # black outline passes
+        if digit_sprites:
+            lay = layer_for(off, BIG, digit_sprites)
+            frame = Image.alpha_composite(frame, shade(lay, off, BIG, True))
+        if cached:
+            ublack = _UNIT_CACHE["black"][off]
+        else:
+            ublack = shade(layer_for(off, BIG, unit_sprite), off, BIG, True)
+            if fast:
+                _UNIT_CACHE.setdefault("black", {})[off] = ublack
+        frame = Image.alpha_composite(frame, ublack)
         lay = layer_for(off, charge_px, bar_sprites(charge_px))
         frame = Image.alpha_composite(frame, shade(lay, off, charge_px, True))
     if digit_sprites:                                          # white passes
         lay = layer_for((0, 0), BIG, digit_sprites)
         frame = Image.alpha_composite(frame, shade(lay, (0, 0), BIG, False, shift=0.0))
-    lay = layer_for((0, 0), BIG, unit_sprite)
-    frame = Image.alpha_composite(frame, shade(lay, (0, 0), BIG, False))
+    if cached:
+        uwhite = _UNIT_CACHE["white"]
+    else:
+        uwhite = shade(layer_for((0, 0), BIG, unit_sprite), (0, 0), BIG, False)
+        if fast:
+            _UNIT_CACHE["white"], _UNIT_CACHE["key"] = uwhite, ukey
+    frame = Image.alpha_composite(frame, uwhite)
     lay = layer_for((0, 0), speed_px, bar_sprites(speed_px))
     frame = Image.alpha_composite(frame, shade(lay, (0, 0), speed_px, False))
     return frame

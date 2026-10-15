@@ -6,7 +6,7 @@ The library parts (formats, defaults, renderers) work without the GUI:
 """
 from __future__ import annotations
 
-__version__ = "1.3.2"
+__version__ = "1.12.2"
 
 from .common import *  # noqa: F401,F403
 from .qoi import *  # noqa: F401,F403

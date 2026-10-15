@@ -1,6 +1,8 @@
 """Reading and writing MonoGame XNB files (Texture2D, QOI-in-XNB, GLTF model JSON)."""
 from __future__ import annotations
 
+from .i18n import _
+
 import json
 import struct
 from dataclasses import dataclass
@@ -19,6 +21,9 @@ FOURCC = {4: b"DXT1", 5: b"DXT3", 6: b"DXT5"}
 
 
 def read7(data: bytes, p: int):
+    """Reads a 7-bit encoded integer (the .NET variable-length format XNB uses for counts and string lengths) at
+    offset p. Returns (value, offset after it).
+    """
     result = shift = 0
     while True:
         b = data[p]
@@ -30,12 +35,16 @@ def read7(data: bytes, p: int):
 
 
 def read_str(data: bytes, p: int):
+    """Reads a length-prefixed UTF-8 string at offset p. Returns (text, offset after it)."""
     n, p = read7(data, p)
     return data[p:p + n].decode("utf-8"), p + n
 
 
 @dataclass
 class XnbInfo:
+    """What parse_xnb finds in an XNB header: the type reader of the main asset, where its data starts, the format
+    version and the flags.
+    """
     reader: str      # type reader of the primary asset
     content: int     # offset where the asset's own data begins
     version: int
@@ -43,16 +52,19 @@ class XnbInfo:
 
 
 def parse_xnb(data: bytes) -> XnbInfo:
+    """Reads an XNB file's header and type-reader list. Raises XnbError (in plain words) for files that are not
+    XNB, compressed, or damaged.
+    """
     try:
         if data[:3] != b"XNB":
-            raise XnbError("not an XNB file")
+            raise XnbError(_("not an XNB file"))
         version, flags = data[4], data[5]
         if flags & 0xC0:
-            raise XnbError("compressed XNB files are not supported")
+            raise XnbError(_("compressed XNB files are not supported"))
         p = 10
         count, p = read7(data, p)
         readers = []
-        for _ in range(count):
+        for _i in range(count):
             name, p = read_str(data, p)
             p += 4  # reader version
             readers.append(name)
@@ -79,6 +91,10 @@ def peek_kind(path: Path) -> str:
 
 @dataclass
 class TexData:
+    """A decoded texture and how it was stored, so it can be written back the same way: the image, the surface
+    format, size, mip levels, whether alpha was premultiplied and the codec ('tex2d' for MonoGame Texture2D,
+    'qoi' for STUNTBOOST's QoiReader).
+    """
     img: Image.Image
     fmt: int
     width: int
@@ -89,6 +105,7 @@ class TexData:
 
 
 def _dds(w: int, h: int, fourcc: bytes, raw: bytes) -> bytes:
+    """Wraps raw DXT/BC data in a minimal DDS header so Pillow can decode it."""
     return (
         b"DDS " + struct.pack("<7I", 124, 0x81007, h, w, len(raw), 0, 1)
         + b"\0" * 44
@@ -99,6 +116,9 @@ def _dds(w: int, h: int, fourcc: bytes, raw: bytes) -> bytes:
 
 
 def load_texture(path: Path) -> TexData:
+    """Reads a texture .xnb (MonoGame Texture2D in the usual formats, or a QOI texture) into TexData. Raises
+    XnbError for anything else.
+    """
     data = Path(path).read_bytes()
     info = parse_xnb(data)
     if "QoiReader" in info.reader:
@@ -134,6 +154,11 @@ def load_texture(path: Path) -> TexData:
 
 
 def save_texture(path: Path, new_img: Image.Image, old: TexData) -> None:
+    """Writes a new image into an existing texture .xnb, keeping its header and codec: QOI textures get the new
+    image as QOI; Texture2D ones are written as uncompressed Color (RGBA) with the same number of mip levels
+    (premultiplied again when the original was). The first time a file is written a .bak copy of the original
+    is kept; every write is atomic, so a crash never leaves half a file.
+    """
     path = Path(path)
     data = path.read_bytes()
     info = parse_xnb(data)
@@ -171,7 +196,10 @@ def save_texture(path: Path, new_img: Image.Image, old: TexData) -> None:
 
 
 def read_model_json(path: Path) -> dict:
+    """The JSON text a GLTF model .xnb carries (BytingPipeline.GLTFReader), parsed. Used to find which texture a
+    board model uses.
+    """
     data = Path(path).read_bytes()
     info = parse_xnb(data)
-    text, _ = read_str(data, info.content)
+    text, _unused = read_str(data, info.content)
     return json.loads(text)

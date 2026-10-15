@@ -7,8 +7,10 @@ import tkinter.font as tkfont
 from PIL import Image, ImageTk
 
 from ..boards import PALETTE_SLOTS, to_hex
-from ..settings import C, GALLERY_COLS, LAYOUTS, SETTINGS, _rgb, save_settings, set_theme, titlebar
-from .base import F, Preview, Scroll, _scrolls, button, card, hline, label, more_button
+from ..i18n import N_, _
+from ..settings import (C, GAL_LAYOUTS, GALLERY_COLS, LAYOUTS, SETTINGS, THEME_NAMES, _rgb, save_settings,
+                        set_theme, titlebar)
+from .base import F, FlatButton, Flow, Preview, Scroll, SegButton, _scrolls, button, card, hline, label, more_button
 from . import base
 from .dialogs import SettingsDialog
 
@@ -18,9 +20,23 @@ class LayoutsMixin:
 
     # ---------- layout ----------
     def _build(self):
+        """Builds the whole window for the layout in the settings: the header (the shop sign for Skate shop, the
+        classic bar otherwise), then the content and footer. Called at start and by rebuild().
+        """
         del _scrolls[:]
         self.gal_cards = {}
-        # header
+        self.decor_view = None                  # until this build's Decorate exists
+        self.layout = SETTINGS.get("layout", "studio")
+        if self.layout == "shop":
+            self._shop_header()
+        else:
+            self._build_header()
+        self._build_rest()
+
+    def _build_header(self):
+        """The header of the Studio / Gallery / Classic layouts: logo, the Boards / Speedmeter / Decorate tabs, the
+        folder path with Change..., Save all as defaults and Settings.
+        """
         hdr = tk.Frame(base.root, bg=C["panel"])
         hdr.pack(fill="x")
         hline(base.root).pack(fill="x")
@@ -32,18 +48,18 @@ class LayoutsMixin:
         logo.create_oval(8, 19, 12, 23, fill=C["onaccent"], outline="")
         logo.create_oval(16, 19, 20, 23, fill=C["onaccent"], outline="")
         logo.pack(side="left")
-        label(row, "Board Texture Tool", "title").pack(side="left", padx=(10, 16))
+        label(row, _("Board Texture Tool"), "title").pack(side="left", padx=(10, 16))
         tabs = tk.Frame(row, bg=C["bg"], highlightthickness=1, highlightbackground=C["border"])
         tabs.pack(side="left", padx=(0, 16))
         self.tab_var = tk.StringVar(value=self._keep.get("tab", "boards"))
-        for text, val in (("Boards", "boards"), ("Decorate", "decor"), ("Speedmeter", "speed")):
-            tk.Radiobutton(tabs, text=text, value=val, variable=self.tab_var,
+        for text, val in ((N_("Boards"), "boards"), (N_("Decorate"), "decor"), (N_("Speedmeter"), "speed")):
+            SegButton(tabs, text=_(text), value=val, variable=self.tab_var,
                            command=self.switch_tab, indicatoron=False, bg=C["bg"],
                            fg=C["text"], selectcolor=C["selfill"], activebackground=C["btnh"],
                            activeforeground=C["text"], relief="flat", bd=0, highlightthickness=0,
                            padx=16, pady=6, font=F["bold"], cursor="hand2").pack(side="left", padx=2, pady=2)
-        button(row, "⚙  Settings", self.open_settings).pack(side="right", padx=(8, 0))
-        self.btn_saveall = button(row, "Save all as defaults", self.save_all_defaults)
+        button(row, _("⚙  Settings"), self.open_settings).pack(side="right", padx=(8, 0))
+        self.btn_saveall = button(row, _("Save all as defaults"), self.save_all_defaults)
         self.btn_saveall.pack(side="right", padx=(12, 0))
         box = tk.Frame(row, bg=C["bg"], highlightthickness=1, highlightbackground=C["border"])
         box.pack(side="left", fill="x", expand=True)
@@ -53,12 +69,17 @@ class LayoutsMixin:
         ic.pack(side="left", padx=(10, 0))
         self.path_kind = label(box, "", "small", "muted", bg=C["bg"])
         self.path_kind.pack(side="left", padx=(6, 0))
-        button(box, "Change…", self.change_folder).pack(side="right", padx=4, pady=4)
+        button(box, _("Change…"), self.change_folder).pack(side="right", padx=4, pady=4)
         self.path_lbl = label(box, self.path_full, "mono", "sub", anchor="w", width=1)
         self.path_lbl.pack(side="left", fill="x", expand=True, padx=8)
         self.path_lbl.bind("<Configure>", self._fit_path)
 
+    def _build_rest(self):
         # footer (packed before the body so it stays visible)
+        """The footer (status and summary) and the content: the Speedmeter view, the boards view in the chosen
+        layout, and Decorate (a separate view, or a mode of the Bench in the Skate shop layout). Ends with
+        switch_tab().
+        """
         foot = tk.Frame(base.root, bg=C["panel"])
         foot.pack(side="bottom", fill="x")
         hline(base.root).pack(side="bottom", fill="x")
@@ -68,34 +89,43 @@ class LayoutsMixin:
         self.summary_lbl = label(foot, "", "small", "muted")
         self.summary_lbl.pack(side="right", padx=16)
 
-        body = tk.Frame(base.root, bg=C["bg"])
+        body = self._body = tk.Frame(base.root, bg=C["bg"])
         body.pack(fill="both", expand=True)
         # speedmeter view: file list + scrolling main area
         self.speed_view = tk.Frame(body, bg=C["bg"])
-        side = tk.Frame(self.speed_view, bg=C["side"], width=290)
-        side.pack(side="left", fill="y")
-        side.pack_propagate(False)
-        self._build_speed_sidebar(side)
-        tk.Frame(self.speed_view, bg=C["border"], width=1).pack(side="left", fill="y")
-        sc = Scroll(self.speed_view)
-        sc.pack(side="left", fill="both", expand=True)
-        self.speed_main = sc.inner
-        self._build_speed_main(sc.inner)
+        if self.layout == "shop":
+            self._build_speed_shop(self.speed_view)     # the Speedmeter bench
+        else:
+            side = tk.Frame(self.speed_view, bg=C["side"], width=290)
+            side.pack(side="left", fill="y")
+            side.pack_propagate(False)
+            self._build_speed_sidebar(side)
+            tk.Frame(self.speed_view, bg=C["border"], width=1).pack(side="left", fill="y")
+            sc = Scroll(self.speed_view)
+            sc.pack(side="left", fill="both", expand=True)
+            self.speed_main = sc.inner
+            self._build_speed_main(sc.inner)
         # boards view: arranged by the chosen layout
         self.board_view = tk.Frame(body, bg=C["bg"])
-        self.layout = SETTINGS.get("layout", "studio")
-        {"classic": self._layout_classic, "gallery": self._layout_gallery}.get(
+        {"classic": self._layout_classic, "gallery": self._layout_gallery, "shop": self._layout_shop}.get(
             self.layout, self._layout_studio)(self.board_view)
         # decorate view (built after the boards view: it shares the 3D toggles)
-        self.decor_view = tk.Frame(body, bg=C["bg"])
+        if self.layout == "shop":
+            self.decor_view = self._shop_decor_holder      # Decorate is a mode of the Bench
+        else:
+            self.decor_view = tk.Frame(body, bg=C["bg"])
         self._build_decorate(self.decor_view)
         self.switch_tab()
 
     # -- shared pieces --
     def _vline(self, parent, side="left"):
+        """A one pixel vertical line in the border colour."""
         tk.Frame(parent, bg=C["border"], width=1).pack(side=side, fill="y")
 
     def _build_filter(self, parent, bg):
+        """The board search box ('Filter boards...' placeholder, filters the list as you type, Enter opens the
+        first match). Returns its frame.
+        """
         sbox = tk.Frame(parent, bg=C["bg"], highlightthickness=1, highlightbackground=C["border"])
         ic = tk.Canvas(sbox, width=14, height=14, bg=C["bg"], highlightthickness=0)
         ic.create_oval(1, 1, 10, 10, outline=C["muted"], width=1.6)
@@ -111,7 +141,7 @@ class LayoutsMixin:
         if kept:
             self.filter.insert(0, kept)
         else:
-            self.filter.insert(0, "Filter boards…")
+            self.filter.insert(0, _("Filter boards…"))
             self.filter.config(fg=C["muted"])
         self.filter.bind("<FocusIn>", self._filter_focus_in)
         self.filter.bind("<FocusOut>", self._filter_focus_out)
@@ -120,10 +150,12 @@ class LayoutsMixin:
         self.filter_var.trace_add("write", lambda *a: self._fill_list())
         return sbox
 
-    def _build_legend(self, parent, bg):
-        leg = tk.Frame(parent, bg=bg)
-        for kind, text in (("def", "Default"), ("mod", "Modified"), ("none", "No default")):
-            c = tk.Canvas(leg, width=10, height=10, bg=bg, highlightthickness=0)
+    def _build_legend(self, parent, bg, natural=False):
+        """The legend of the list's status marks (stock / modified / no stock)."""
+        leg = Flow(parent, gap=12, vgap=2, natural=natural, bg=bg)
+        for kind, text in (("def", N_("Default")), ("mod", N_("Modified")), ("none", N_("No default"))):
+            item = tk.Frame(leg, bg=bg)
+            c = tk.Canvas(item, width=10, height=10, bg=bg, highlightthickness=0)
             if kind == "def":
                 c.create_oval(1, 1, 9, 9, fill=C["green"], outline="")
             elif kind == "mod":
@@ -131,10 +163,13 @@ class LayoutsMixin:
             else:
                 c.create_oval(1, 1, 9, 9, outline=C["muted"], width=1.5)
             c.pack(side="left")
-            label(leg, text, "small", "muted").pack(side="left", padx=(4, 12))
+            label(item, _(text), "small", "muted").pack(side="left", padx=(4, 0))
+            leg.add(item)
         return leg
 
     def _build_board_list(self, parent, width=290):
+        """The board list column of the Classic and Studio layouts: count, search, legend and the list itself.
+        """
         side = tk.Frame(parent, bg=C["side"], width=width)
         side.pack(side="left", fill="y")
         side.pack_propagate(False)
@@ -142,7 +177,7 @@ class LayoutsMixin:
         top.pack(fill="x", padx=14, pady=(14, 8))
         r = tk.Frame(top, bg=C["side"])
         r.pack(fill="x")
-        label(r, "Boards", "bold").pack(side="left")
+        label(r, _("Boards"), "bold").pack(side="left")
         self.count_lbl = label(r, "", "small", "muted")
         self.count_lbl.pack(side="right")
         self._build_filter(top, C["side"]).pack(fill="x", pady=(10, 8))
@@ -159,8 +194,9 @@ class LayoutsMixin:
         self._vline(parent)
 
     def _card_title(self, parent, size="h1"):
+        """The board title row: name, status badge and the previous / next buttons."""
         tr = tk.Frame(parent, bg=parent.cget("bg"))
-        self.title_lbl = label(tr, "No board selected", size)
+        self.title_lbl = label(tr, _("No board selected"), size)
         self.title_lbl.pack(side="left")
         self.badge = tk.Label(tr, font=F["smallbold"], padx=10, pady=3)
         self.badge.pack(side="left", padx=14)
@@ -171,10 +207,13 @@ class LayoutsMixin:
         return tr
 
     def _card_texture(self, parent, compact=False):
+        """The texture card: file details, the preview (drop an image on it) and Replace / Export / Open other /
+        Set default / Revert.
+        """
         tc = card(parent)
         head = tk.Frame(tc, bg=C["panel"])
         head.pack(fill="x", padx=16, pady=(10, 0))
-        label(head, "Board texture", "h2").pack(side="left")
+        label(head, _("Board texture"), "h2").pack(side="left")
         self.tex_file = label(head, "", "mono", "muted")
         self.tex_file.pack(side="left", padx=10)
         self.tex_chips = tk.Frame(tc, bg=C["panel"])
@@ -184,29 +223,32 @@ class LayoutsMixin:
         self.tex_prev.pack(fill="x", padx=16, pady=16)
         act = tk.Frame(tc, bg=C["panel"])
         act.pack(fill="x", padx=16)
-        self.b_tex_replace = button(act, "↑  Replace…" if compact else "↑  Replace image…",
+        self.b_tex_replace = button(act, _("↑  Replace…") if compact else _("↑  Replace image…"),
                                     lambda: self.replace("tex"), "primary")
         self.b_tex_replace.pack(side="left")
-        self.b_tex_export = button(act, "Export" if compact else "Export PNG…", lambda: self.export("tex"))
+        self.b_tex_export = button(act, _("Export") if compact else _("Export PNG…"), lambda: self.export("tex"))
         self.b_tex_export.pack(side="left", padx=(8, 0))
-        self.b_tex_revert = button(act, "Revert" if compact else "Revert to default", lambda: self.revert("tex"))
+        self.b_tex_revert = button(act, _("Revert") if compact else _("Revert to default"), lambda: self.revert("tex"))
         self.b_tex_revert.pack(side="left", padx=(8, 0))
         act2 = tk.Frame(tc, bg=C["panel"])
         act2.pack(fill="x", padx=16, pady=(6, 14))
-        self.b_tex_setdef = button(act2, "Set as default" if compact else "Set current as default",
+        self.b_tex_setdef = button(act2, _("Set as default") if compact else _("Set current as default"),
                                    lambda: self.set_default("tex"), "ghost")
         self.b_tex_setdef.pack(side="left")
-        button(act2, "Open other…" if compact else "Open other .xnb…", self.open_other,
+        button(act2, _("Open other…") if compact else _("Open other .xnb…"), self.open_other,
                "ghost").pack(side="left")
         return tc
 
     def _card_colors(self, parent, cols=4):
+        """The board colours card: the four colour swatches with their hex fields in `cols` columns, colour
+        suggestions from the artwork, Copy / Paste / Reset and Apply.
+        """
         pc = card(parent)
         head = tk.Frame(pc, bg=C["panel"])
         head.pack(fill="x", padx=16, pady=10)
-        label(head, "Board colors", "h2").pack(side="left")
+        label(head, _("Board colors"), "h2").pack(side="left")
         if cols >= 4:
-            label(head, "first 4 pixels of the texture's top row", "small", "muted").pack(
+            label(head, _("first 4 pixels of the texture's top row"), "small", "muted").pack(
                 side="left", padx=10)
         self.pal_state = label(head, "", "small", "muted")
         self.pal_state.pack(side="right")
@@ -222,7 +264,7 @@ class LayoutsMixin:
                            highlightthickness=1, highlightbackground=C["btnb"], cursor="hand2")
             sw.grid(row=0, column=0, rowspan=3, padx=(0, 10))
             sw.bind("<Button-1>", lambda e, i=i: self.pick_color(i))
-            label(cell, name if cols != 1 else f"{name}  ·  pixel {i}, 0", "bold").grid(
+            label(cell, _(name) if cols != 1 else _("{name}  ·  pixel {i}, 0", name=_(name), i=i), "bold").grid(
                 row=0, column=1, sticky="w")
             var = tk.StringVar()
             ent = tk.Entry(cell, textvariable=var, width=9, bg=C["bg"], fg=C["text"],
@@ -235,53 +277,55 @@ class LayoutsMixin:
             was = label(cell, "", "small", "muted")
             was.grid(row=2, column=1, sticky="w")
             self.pal_widgets.append((sw, var, ent, was))
-        pact = tk.Frame(pc, bg=C["panel"])
+        pact = Flow(pc, gap=8, bg=C["panel"])
         pact.pack(fill="x", padx=16, pady=(8, 8 if cols < 4 else 16))
-        self.b_pal_apply = button(pact, "Apply colors" if cols < 4 else "Apply colors to texture",
-                                  self.apply_colors, "primary")
-        self.b_pal_apply.pack(side="left")
-        self.b_pal_reset = button(pact, "Reset", self.reset_colors)
-        self.b_pal_reset.pack(side="left", padx=(8, 0))
-        self.b_pal_copy = button(pact, "Copy", self.copy_colors, "ghost")
-        self.b_pal_copy.pack(side="left", padx=(8, 0))
-        self.b_pal_paste = button(pact, "Paste", self.paste_colors, "ghost")
-        self.b_pal_paste.pack(side="left")
+        self.b_pal_apply = pact.add(button(pact, _("Apply colors") if cols < 4 else _("Apply colors to texture"),
+                                           self.apply_colors, "primary"))
+        self.b_pal_reset = pact.add(button(pact, _("Reset"), self.reset_colors))
+        self.b_pal_copy = pact.add(button(pact, _("Copy"), self.copy_colors, "ghost"), gap=0)
+        self.b_pal_paste = pact.add(button(pact, _("Paste"), self.paste_colors, "ghost"))
         self.keep_pal = tk.BooleanVar(value=self._keep.get("keep_pal", True))
-        cb = tk.Checkbutton(pact if cols >= 4 else pc,
-                            text="Keep these colors when replacing the texture image",
+        cb = tk.Checkbutton(pact if cols >= 4 else pc, wraplength=300,
+                            text=_("Keep these colors when replacing the texture image"),
                             variable=self.keep_pal, bg=C["panel"], fg=C["sub"],
                             activebackground=C["panel"], activeforeground=C["text"],
                             selectcolor=C["bg"], font=F["small"], bd=0, highlightthickness=0,
                             cursor="hand2", anchor="w", justify="left")
         if cols >= 4:
-            cb.pack(side="right")
+            pact.add(cb)
         else:
             cb.pack(fill="x", padx=16, pady=(0, 14))
         return pc
 
     def _card_v3(self, parent, height=200):
+        """The 3D preview card: Decorate..., outline and screws switches, the 3D canvas, the view buttons and the
+        note under it.
+        """
         vc = card(parent)
         head = tk.Frame(vc, bg=C["panel"])
         head.pack(fill="x", padx=16, pady=10)
-        label(head, "3D preview", "h2").pack(side="left")
-        button(head, "Decorate\u2026", self.open_decorate, "primary", small=True).pack(side="right", padx=(12, 0))
+        label(head, _("3D preview"), "h2").pack(side="left")
+        button(head, _("Decorate…"), self.open_decorate, "primary", small=True).pack(side="right", padx=(12, 0))
         self.v3_screws = tk.BooleanVar(value=self._keep.get("screws", True))
         self.v3_outline = tk.BooleanVar(value=self._keep.get("outline", True))
-        for text, var in (("Outline", self.v3_outline), ("Screws", self.v3_screws)):
-            tk.Checkbutton(head, text=text, variable=var, command=self.v3_schedule,
+        for text, var in ((N_("Outline"), self.v3_outline), (N_("Screws"), self.v3_screws)):
+            tk.Checkbutton(head, text=_(text), variable=var, command=self.v3_schedule,
                            bg=C["panel"], fg=C["sub"], activebackground=C["panel"],
                            activeforeground=C["text"], selectcolor=C["bg"], font=F["small"],
                            bd=0, highlightthickness=0, cursor="hand2").pack(side="right", padx=(8, 0))
         hline(vc).pack(fill="x")
         vbar = tk.Frame(vc, bg=C["panel"])
         vbar.pack(side="bottom", fill="x", padx=16, pady=(0, 12))
-        for text, yaw, pitch in (("3/4", 120, 28), ("Top", 120, 30), ("Bottom", 120, -30), ("Side", 90, 0)):
-            tk.Button(vbar, text=text, command=lambda y=yaw, p=pitch: self.v3_view(y, p),
+        for text, yaw, pitch in (("3/4", 120, 28), (N_("Top"), 120, 30), (N_("Bottom"), 120, -30), (N_("Side"), 90, 0)):
+            FlatButton(vbar, text=_(text), command=lambda y=yaw, p=pitch: self.v3_view(y, p),
                       bg=C["btn"], fg=C["text"], activebackground=C["btnh"],
                       activeforeground=C["text"], relief="flat", bd=0, highlightthickness=1,
                       highlightbackground=C["btnb"], padx=10, pady=3, font=F["small"],
                       cursor="hand2").pack(side="left", padx=(0, 4))
-        label(vbar, "drag · scroll · double-click · click a part to recolor", "small", "muted").pack(side="right")
+        hint = label(vbar, _("drag · scroll · double-click · click a part to recolor"), "small", "muted")
+        hint.pack(side="right")
+        # hidden when the buttons leave no room for it (narrow 3D panels, longer translations)
+        vbar.bind("<Configure>", lambda e, h=hint, b=vbar: b.after_idle(self._fit_hint, b, h), add="+")
         self.v3_note = label(vc, "", "small", "muted", anchor="w", justify="left")
         self.v3_note.pack(side="bottom", fill="x", padx=16, pady=(0, 8))
         self.v3_note.bind("<Configure>", lambda e: self.v3_note.config(wraplength=max(150, e.width - 4)))
@@ -301,10 +345,13 @@ class LayoutsMixin:
         return vc
 
     def _card_thumb(self, parent, compact=False):
+        """The thumbnail card: file details, the preview and Generate from texture / Replace / Export / Set default
+        / Revert.
+        """
         th = card(parent)
         head = tk.Frame(th, bg=C["panel"])
         head.pack(fill="x", padx=16, pady=(10, 0) if compact else 10)
-        label(head, "Thumbnail", "h2").pack(side="left")
+        label(head, _("Thumbnail"), "h2").pack(side="left")
         self.thumb_file = label(head, "", "mono", "muted")
         self.thumb_file.pack(side="left", padx=10)
         self.thumb_chips = tk.Frame(th if compact else head, bg=C["panel"])
@@ -317,8 +364,8 @@ class LayoutsMixin:
         self.thumb_prev.pack(fill="x", padx=16, pady=(16, 12))
         a1 = tk.Frame(th, bg=C["panel"])
         a1.pack(fill="x", padx=16)
-        self.b_th_gen = button(a1, "Generate from texture", self.generate_thumb)
-        self.b_th_replace = button(a1, "Replace…", lambda: self.replace("thumb"))
+        self.b_th_gen = button(a1, _("Generate from texture"), self.generate_thumb)
+        self.b_th_replace = button(a1, _("Replace…"), lambda: self.replace("thumb"))
         if compact:
             self.b_th_gen.pack(side="left")
             self.b_th_replace.pack(side="left", padx=(8, 0))
@@ -329,15 +376,15 @@ class LayoutsMixin:
             self.b_th_replace.pack(side="left")
             self.b_th_gen.pack(side="left", padx=(8, 0))
             parent2 = a1
-        self.b_th_export = button(parent2, "Export" if compact else "Export PNG…",
+        self.b_th_export = button(parent2, _("Export") if compact else _("Export PNG…"),
                                   lambda: self.export("thumb"))
         self.b_th_export.pack(side="left", padx=(0 if compact else 8, 0))
         a2 = tk.Frame(th, bg=C["panel"])
         a2.pack(fill="x", padx=16, pady=(8, 16))
-        self.b_th_revert = button(a2, "Revert" if compact else "Revert to default",
+        self.b_th_revert = button(a2, _("Revert") if compact else _("Revert to default"),
                                   lambda: self.revert("thumb"))
         self.b_th_revert.pack(side="left")
-        self.b_th_setdef = button(a2, "Set as default" if compact else "Set current as default",
+        self.b_th_setdef = button(a2, _("Set as default") if compact else _("Set current as default"),
                                   lambda: self.set_default("thumb"), "ghost")
         self.b_th_setdef.pack(side="left", padx=(8, 0))
         return th
@@ -350,8 +397,8 @@ class LayoutsMixin:
         self.board_tab = tk.StringVar(value=self._keep.get("board_tab", "tex"))
         seg = tk.Frame(top, bg=C["bg"], highlightthickness=1, highlightbackground=C["border"])
         seg.pack(side="left")
-        for text, val in (("Texture", "tex"), ("Thumbnail", "thumb")):
-            tk.Radiobutton(seg, text=text, value=val, variable=self.board_tab, command=self._board_tab_show,
+        for text, val in ((N_("Texture"), "tex"), (N_("Thumbnail"), "thumb")):
+            SegButton(seg, text=_(text), value=val, variable=self.board_tab, command=self._board_tab_show,
                            indicatoron=False, bg=C["bg"], fg=C["text"], selectcolor=C["selfill"],
                            activebackground=C["btnh"], activeforeground=C["text"], relief="flat", bd=0,
                            highlightthickness=0, padx=12, pady=3, font=F["smallbold"],
@@ -371,15 +418,15 @@ class LayoutsMixin:
         self.tex_prev.pack(fill="x", padx=12)
         act = tk.Frame(pg, bg=C["panel"])
         act.pack(fill="x", padx=12, pady=(8, 10))
-        self.b_tex_replace = button(act, "\u2191 Replace\u2026", lambda: self.replace("tex"), "primary", small=True)
+        self.b_tex_replace = button(act, _("↑ Replace…"), lambda: self.replace("tex"), "primary", small=True)
         self.b_tex_replace.pack(side="left")
-        self.b_tex_export = button(act, "Export", lambda: self.export("tex"), small=True)
+        self.b_tex_export = button(act, _("Export"), lambda: self.export("tex"), small=True)
         self.b_tex_export.pack(side="left", padx=(6, 0))
-        self.b_tex_revert = button(act, "Revert", lambda: self.revert("tex"), small=True)
+        self.b_tex_revert = button(act, _("Revert"), lambda: self.revert("tex"), small=True)
         self.b_tex_revert.pack(side="left", padx=(6, 0))
         more, (self.b_tex_setdef, _o) = more_button(act, [
-            ("Set current as default", lambda: self.set_default("tex")),
-            ("Open other .xnb\u2026", self.open_other)])
+            (N_("Set current as default"), lambda: self.set_default("tex")),
+            (N_("Open other .xnb\u2026"), self.open_other)])
         more.pack(side="right")
         self._bt_pages["tex"] = pg
 
@@ -392,15 +439,15 @@ class LayoutsMixin:
         self.thumb_prev.pack(fill="x", padx=12)
         act2 = tk.Frame(pg2, bg=C["panel"])
         act2.pack(fill="x", padx=12, pady=(8, 10))
-        self.b_th_gen = button(act2, "Generate from texture", self.generate_thumb, "primary", small=True)
+        self.b_th_gen = button(act2, _("Generate from texture"), self.generate_thumb, "primary", small=True)
         self.b_th_gen.pack(side="left")
-        self.b_th_replace = button(act2, "Replace\u2026", lambda: self.replace("thumb"), small=True)
+        self.b_th_replace = button(act2, _("Replace…"), lambda: self.replace("thumb"), small=True)
         self.b_th_replace.pack(side="left", padx=(6, 0))
-        self.b_th_export = button(act2, "Export", lambda: self.export("thumb"), small=True)
+        self.b_th_export = button(act2, _("Export"), lambda: self.export("thumb"), small=True)
         self.b_th_export.pack(side="left", padx=(6, 0))
         more2, (self.b_th_revert, self.b_th_setdef) = more_button(act2, [
-            ("Revert to default", lambda: self.revert("thumb")),
-            ("Set current as default", lambda: self.set_default("thumb"))])
+            (N_("Revert to default"), lambda: self.revert("thumb")),
+            (N_("Set current as default"), lambda: self.set_default("thumb"))])
         more2.pack(side="right")
         self._bt_pages["thumb"] = pg2
 
@@ -408,7 +455,7 @@ class LayoutsMixin:
         hline(bc).pack(fill="x")
         ch = tk.Frame(bc, bg=C["panel"])
         ch.pack(fill="x", padx=12, pady=(8, 6))
-        label(ch, "Board colors", "smallbold").pack(side="left")
+        label(ch, _("Board colors"), "smallbold").pack(side="left")
         self.pal_state = label(ch, "", "small", "muted")
         self.pal_state.pack(side="right")
         slots = tk.Frame(bc, bg=C["panel"])
@@ -422,7 +469,7 @@ class LayoutsMixin:
                            highlightbackground=C["btnb"], cursor="hand2")
             sw.grid(row=0, column=0, rowspan=2, padx=(0, 6))
             sw.bind("<Button-1>", lambda e, i=i: self.pick_color(i))
-            label(cell, name, "small", "muted").grid(row=0, column=1, sticky="w")
+            label(cell, _(name), "small", "muted").grid(row=0, column=1, sticky="w")
             var = tk.StringVar()
             ent = tk.Entry(cell, textvariable=var, width=7, bg=C["bg"], fg=C["text"],
                            insertbackground=C["text"], relief="flat", bd=0, font=F["mono"],
@@ -433,24 +480,40 @@ class LayoutsMixin:
             ent.bind("<FocusOut>", lambda e, i=i: self.commit_color(i))
             was = label(cell, "", "small", "muted")     # not shown: the swatch corner shows it
             self.pal_widgets.append((sw, var, ent, was))
-        pact = tk.Frame(bc, bg=C["panel"])
+        pact = Flow(bc, gap=6, bg=C["panel"])
         pact.pack(fill="x", padx=12, pady=(8, 12))
-        self.b_pal_apply = button(pact, "Apply", self.apply_colors, "primary", small=True)
-        self.b_pal_apply.pack(side="left")
-        self.b_pal_reset = button(pact, "Reset", self.reset_colors, small=True)
-        self.b_pal_reset.pack(side="left", padx=(6, 0))
-        self.b_pal_copy = button(pact, "Copy", self.copy_colors, "ghost", small=True)
-        self.b_pal_copy.pack(side="left", padx=(6, 0))
-        self.b_pal_paste = button(pact, "Paste", self.paste_colors, "ghost", small=True)
-        self.b_pal_paste.pack(side="left")
+        self.b_pal_apply = pact.add(button(pact, _("Apply"), self.apply_colors, "primary", small=True))
+        self.b_pal_reset = pact.add(button(pact, _("Reset"), self.reset_colors, small=True))
+        self.b_pal_copy = pact.add(button(pact, _("Copy"), self.copy_colors, "ghost", small=True), gap=0)
+        self.b_pal_paste = pact.add(button(pact, _("Paste"), self.paste_colors, "ghost", small=True))
         self.keep_pal = tk.BooleanVar(value=self._keep.get("keep_pal", True))
-        tk.Checkbutton(pact, text="Keep on replace", variable=self.keep_pal, bg=C["panel"], fg=C["sub"],
-                       activebackground=C["panel"], activeforeground=C["text"], selectcolor=C["bg"],
-                       font=F["small"], bd=0, highlightthickness=0, cursor="hand2").pack(side="right")
+        pact.add(tk.Checkbutton(pact, text=_("Keep on replace"), variable=self.keep_pal, bg=C["panel"], fg=C["sub"],
+                                activebackground=C["panel"], activeforeground=C["text"], selectcolor=C["bg"],
+                                font=F["small"], bd=0, highlightthickness=0, cursor="hand2"))
         self._board_tab_show()
         return bc
 
+    @staticmethod
+    def _fit_hint(bar, hint):
+        """Shows the hint at the right of a button bar only when it fits next to the buttons."""
+        if not (bar.winfo_exists() and hint.winfo_exists()):
+            return
+        import time
+        now, last = time.monotonic(), getattr(hint, "_flips", (0.0, 0))
+        n = last[1] + 1 if now - last[0] < 1.0 else 1
+        hint._flips = (last[0] if now - last[0] < 1.0 else now, n)
+        if n > 20:                      # keeps flipping (the bar's width follows it): leave it
+            return
+        others = sum(w.winfo_reqwidth() + 4 for w in bar.winfo_children() if w is not hint)
+        need = others + hint.winfo_reqwidth()
+        shown = bool(hint.winfo_manager())
+        if not shown and need + 24 <= bar.winfo_width():     # some slack: no show / hide flicker
+            hint.pack(side="right")
+        elif shown and need + 8 > bar.winfo_width():
+            hint.pack_forget()
+
     def _board_tab_show(self):
+        """Shows the Texture or the Thumbnail page of the Gallery drawer and the matching file name."""
         t = self.board_tab.get() if self.board_tab.get() in self._bt_pages else "tex"
         for pg in self._bt_pages.values():
             pg.pack_forget()
@@ -460,32 +523,35 @@ class LayoutsMixin:
         (self.tex_file if t == "tex" else self.thumb_file).pack(side="left", padx=10)
 
     def _card_defaults(self, parent):
+        """The 'Default snapshot' card: when the stock copy was saved, how the texture and thumbnail are stored,
+        and whether .bak backups exist.
+        """
         dc = card(parent)
         inner = tk.Frame(dc, bg=C["panel"])
         inner.pack(fill="both", expand=True, padx=16, pady=14)
-        label(inner, "Default snapshot", "h2").pack(anchor="w")
+        label(inner, _("Default snapshot"), "h2").pack(anchor="w")
         grid = tk.Frame(inner, bg=C["panel"])
         grid.pack(fill="x", pady=(12, 0))
         grid.columnconfigure(0, weight=1, uniform="d")
         grid.columnconfigure(1, weight=1, uniform="d")
         self.def_vals = {}
-        for i, (key, cap) in enumerate((("saved", "Saved"), ("tex", "Texture stored as"),
-                                        ("thumb", "Thumbnail stored as"),
-                                        ("bak", "Backup (.bak)"))):
+        for i, (key, cap) in enumerate((("saved", N_("Saved")), ("tex", N_("Texture stored as")),
+                                        ("thumb", N_("Thumbnail stored as")),
+                                        ("bak", N_("Backup (.bak)")))):
             cell = tk.Frame(grid, bg=C["panel"])
             cell.grid(row=i // 2, column=i % 2, sticky="w", pady=(0, 12))
-            label(cell, cap, "small", "muted").pack(anchor="w")
+            label(cell, _(cap), "small", "muted", wraplength=150, justify="left").pack(anchor="w")
             v = label(cell, "—", "mono" if key == "saved" else "body")
             v.pack(anchor="w")
             self.def_vals[key] = v
         note = tk.Label(inner, bg=C["bg"], fg=C["sub"], font=F["small"], justify="left",
                         anchor="w", padx=12, pady=10, wraplength=380,
-                        text="Defaults live in _board_defaults next to the board files. "
-                             "Revert restores the saved pixels exactly.")
+                        text=_("Defaults live in _board_defaults next to the board files. "
+                               "Revert restores the saved pixels exactly."))
         note.pack(fill="x", side="bottom")
         note.bind("<Configure>", lambda e: note.config(wraplength=max(120, e.width - 24)))
-        hint = ("Tip: drag an image onto a preview to replace it." if base.TkinterDnD else
-                "Tip: pip install tkinterdnd2 to drag images onto the previews.")
+        hint = (_("Tip: drag an image onto a preview to replace it.") if base.TkinterDnD else
+                _("Tip: pip install tkinterdnd2 to drag images onto the previews."))
         hl = label(inner, hint, "small", "muted", anchor="w", justify="left")
         hl.pack(fill="x", side="bottom", pady=(0, 8))
         hl.bind("<Configure>", lambda e: hl.config(wraplength=max(120, e.width - 4)))
@@ -493,6 +559,9 @@ class LayoutsMixin:
 
     # -- layout: Classic (list | texture + 3D, colors, thumbnail + defaults) --
     def _layout_classic(self, view):
+        """The Classic layout: the board list on the left, the texture and 3D cards side by side (stacked when
+        narrow), then colours, thumbnail and defaults.
+        """
         self._build_board_list(view)
         sc = Scroll(view)
         sc.pack(side="left", fill="both", expand=True)
@@ -515,6 +584,9 @@ class LayoutsMixin:
 
     # -- layout: Studio (list | big 3D + texture | inspector) --
     def _layout_studio(self, view):
+        """The Studio layout: the board list on the left, the 3D view and the texture in the middle, colours,
+        thumbnail and defaults in an inspector on the right.
+        """
         self._build_board_list(view, width=260)
         insp = Scroll(view, width=390)
         insp.pack(side="right", fill="y")
@@ -535,6 +607,9 @@ class LayoutsMixin:
     # -- layout: Gallery (board cards | editor drawer) --
     def _layout_gallery(self, view):
         # left: gallery | right: editor drawer, split by a draggable sash
+        """The Gallery layout: every board as a card on the left, the selected board's editor in a drawer on the
+        right (the split can be dragged and is remembered).
+        """
         pw = self.gal_paned = tk.PanedWindow(view, orient="horizontal", bg=C["border"], sashwidth=6,
                                              sashrelief="flat", bd=0, opaqueresize=False,
                                              sashcursor="sb_h_double_arrow", showhandle=False)
@@ -548,24 +623,24 @@ class LayoutsMixin:
         m.pack(fill="x", padx=24, pady=(20, 0))
         bar = tk.Frame(m, bg=C["bg"])
         bar.pack(fill="x")
-        label(bar, "Boards", "h1").pack(side="left")
+        label(bar, _("Boards"), "h1").pack(side="left")
         self.count_lbl = label(bar, "", "small", "muted")
         self.count_lbl.pack(side="left", padx=(12, 0), pady=(8, 0))
         self._build_filter(bar, C["bg"]).pack(side="right", ipadx=60)
         lrow = tk.Frame(m, bg=C["bg"])
         lrow.pack(fill="x", pady=(10, 8))
-        self._build_legend(lrow, C["bg"]).pack(side="left")
+        self._build_legend(lrow, C["bg"], natural=True).pack(side="left")
         per = tk.Frame(lrow, bg=C["bg"], highlightthickness=1, highlightbackground=C["border"])
         per.pack(side="right")
         self.gal_cols_var = tk.StringVar(value=SETTINGS.get("gallery_cols", "auto"))
         for val in GALLERY_COLS:
-            tk.Radiobutton(per, text="Auto" if val == "auto" else val, value=val,
+            SegButton(per, text=_("Auto") if val == "auto" else val, value=val,
                            variable=self.gal_cols_var, command=self._gal_set_cols,
                            indicatoron=False, bg=C["bg"], fg=C["text"], selectcolor=C["selfill"],
                            activebackground=C["btnh"], activeforeground=C["text"], relief="flat",
                            bd=0, highlightthickness=0, padx=10, pady=3, font=F["small"],
                            cursor="hand2").pack(side="left", padx=1, pady=1)
-        label(lrow, "Per row", "small", "muted").pack(side="right", padx=(0, 8))
+        label(lrow, _("Per row"), "small", "muted").pack(side="right", padx=(0, 8))
         # the cards are drawn on ONE canvas (no widget per card) so scrolling is smooth
         area = tk.Frame(left, bg=C["bg"])
         area.pack(fill="both", expand=True, padx=(12, 0), pady=(4, 0))
@@ -573,6 +648,7 @@ class LayoutsMixin:
                                         yscrollincrement=24)
         sb = ttk.Scrollbar(area, orient="vertical", command=c.yview)
         def _yscroll(a, b, _sb=sb):
+            """Scrollbar moved: also draws the cards that came into view."""
             _sb.set(a, b)
             self._gal_fill()                       # cards that scrolled into view get drawn now
         c.configure(yscrollcommand=_yscroll)
@@ -606,6 +682,7 @@ class LayoutsMixin:
     GAL_GAP, GAL_PAD, GAL_ROW = 12, 8, 24
 
     def _gal_sash_released(self, _e=None):
+        """The gallery split was dragged: remembers the drawer width in the settings."""
         try:
             w = int(self.gal_drawer.winfo_width())
         except Exception:
@@ -615,6 +692,7 @@ class LayoutsMixin:
             save_settings(SETTINGS)
 
     def _gal_schedule(self):
+        """Lays the gallery out again soon (60 ms), merging resize bursts."""
         if getattr(self, "_gal_job", None):
             base.root.after_cancel(self._gal_job)
         self._gal_job = base.root.after(60, self._gal_layout)
@@ -649,6 +727,8 @@ class LayoutsMixin:
         return g["photo"], w, h
 
     def _gal_draw(self, i):
+        """Draws one gallery card: the deck picture, its name, status and its four colours; outlined when selected.
+        """
         c, geo = self.gal_canvas, self._gal_geom.get(i)
         if geo is None:
             return
@@ -667,7 +747,8 @@ class LayoutsMixin:
         c.create_text(x0 + P + 2, ty, text=name, anchor="w", font=F["monolist"], fill=C["text"], tags=(t,))
         st = self.status.get(i)
         short = w < 170
-        tag = {"mod": "mod" if short else "modified", "none": "no def" if short else "no default"}.get(st, "")
+        tag = {"mod": _("mod") if short else _("modified"),
+               "none": _("no def") if short else _("no default")}.get(st, "")
         if tag:
             c.create_text(x0 + P + 10 + self._gal_numfont.measure(name), ty, text=tag, anchor="w",
                           font=F["small"], fill=C["warn"] if st == "mod" else C["muted"], tags=(t,))
@@ -678,6 +759,11 @@ class LayoutsMixin:
                                fill=to_hex(pal[k]) if pal else C["btn"], tags=(t,))
 
     def _gal_update(self, i):
+        """Redraws one board's card (on the Wall in the Skate shop layout, in the Gallery otherwise) when it is
+        visible.
+        """
+        if self.layout == "shop":
+            return self._wall_update(i)
         if self.layout == "gallery" and hasattr(self, "gal_canvas") and i is not None \
                 and i in self._gal_drawn:
             self._gal_draw(i)                       # cards not drawn yet pick up the new state when they are
@@ -723,7 +809,12 @@ class LayoutsMixin:
                 self.gal_pil.pop(i, None)
 
     def _gal_layout(self, force=False):
+        """Computes the gallery grid (column count from the setting or the width) and draws the visible cards; the
+        Skate shop layout lays out the Wall instead.
+        """
         self._gal_job = None
+        if self.layout == "shop":
+            return self._wall_layout(force)
         if self.layout != "gallery" or not hasattr(self, "gal_canvas"):
             return
         c = self.gal_canvas
@@ -756,6 +847,7 @@ class LayoutsMixin:
         self._gal_fill()
 
     def _gal_hit(self, e):
+        """The board whose card is under a mouse event, or None."""
         x, y = self.gal_canvas.canvasx(e.x), self.gal_canvas.canvasy(e.y)
         for i, (x0, y0, x1, y1) in self._gal_geom.items():
             if x0 <= x <= x1 and y0 <= y <= y1:
@@ -763,20 +855,24 @@ class LayoutsMixin:
         return None
 
     def _gal_click(self, e):
+        """Click on a gallery card: opens that board."""
         i = self._gal_hit(e)
         if i is not None:
             self.select(i)
 
     def _gal_motion(self, e):
+        """Hand cursor over gallery cards."""
         self.gal_canvas.config(cursor="hand2" if self._gal_hit(e) is not None else "")
 
     def _gal_wheel(self, d):
+        """Mouse wheel over the gallery: scrolls when there is more to see."""
         c = self.gal_canvas
         sr = c.cget("scrollregion").split()
         if sr and float(sr[3]) > c.winfo_height():
             c.yview_scroll(d * 3, "units")
 
     def _gal_set_cols(self):
+        """The column count menu of the gallery changed: saves it and lays out again."""
         SETTINGS["gallery_cols"] = self.gal_cols_var.get()
         save_settings(SETTINGS)
         self._gal_layout(force=True)
@@ -784,6 +880,9 @@ class LayoutsMixin:
             base.root.after(30, lambda: self._gal_scroll_to(self.sel))
 
     def _gal_scroll_to(self, i):
+        """Scrolls the gallery (or the Wall) so board i is visible."""
+        if self.layout == "shop":
+            return self._wall_scroll_to(i)
         if self.layout != "gallery" or not hasattr(self, "gal_canvas") or i not in self._gal_geom:
             return
         c = self.gal_canvas
@@ -796,9 +895,15 @@ class LayoutsMixin:
 
     # -- settings & rebuilding --
     def open_settings(self):
+        """Settings: a page of its own in the Skate shop layout, the Settings window in the others."""
+        if self.layout == "shop":
+            return self._shop_settings_toggle()      # a page of its own in the Skate shop layout
         SettingsDialog(base.root, self)
 
-    def apply_settings(self, layout, theme, gpu=None):
+    def apply_settings(self, layout, theme, gpu=None, language=None, text_size=None):
+        """Uses new settings: switches the 3D renderer when the GPU option changed (no rebuild), and for a new
+        layout, theme, language or text size saves them and rebuilds the window.
+        """
         if gpu is not None and gpu != bool(SETTINGS.get("gpu3d", True)):
             from ..board3d import set_gpu_enabled
             SETTINGS["gpu3d"] = gpu
@@ -809,15 +914,27 @@ class LayoutsMixin:
             if self.tab_var.get() == "decor":
                 self.dc_render()
             from .. import gpu3d
-            self.set_status("3D preview: " + ("graphics card (GPU)" if gpu else
-                            "processor (CPU)" + (" \u00b7 restart the tool to free the graphics driver's memory"
-                                                 if gpu3d.existing() is not None else "")))
-        if layout == SETTINGS.get("layout") and theme == SETTINGS.get("theme"):
+            self.set_status(_("3D preview: {renderer}", renderer=_("graphics card (GPU)") if gpu else
+                              _("processor (CPU)") + (_(" · restart the tool to free the graphics driver's memory")
+                                                      if gpu3d.existing() is not None else "")))
+        lang_changed = language is not None and language != SETTINGS.get("language", "auto")
+        if lang_changed:
+            from ..i18n import set_language
+            SETTINGS["language"] = language
+            set_language(language)
+        size_changed = text_size is not None and text_size != SETTINGS.get("text_size", "balanced")
+        if size_changed:
+            SETTINGS["text_size"] = text_size
+            base.set_text_size(text_size)
+        if layout == SETTINGS.get("layout") and theme == SETTINGS.get("theme") and not lang_changed \
+                and not size_changed:
             return
         SETTINGS["layout"], SETTINGS["theme"] = layout, theme
         save_settings(SETTINGS)
         self.rebuild()
-        self.set_status(f"Layout: {LAYOUTS[layout][0]} · theme: {theme}")
+        self.set_status(_("Layout: {layout} · theme: {theme}", layout=_(LAYOUTS[layout][0]),
+                          theme=_(THEME_NAMES.get(theme, theme))))
+
 
     def rebuild(self):
         """Rebuilds the whole window for a new layout / theme; keeps folder, selection and edits."""
@@ -828,9 +945,16 @@ class LayoutsMixin:
             "screws": self.v3_screws.get(), "outline": self.v3_outline.get(),
             "sm": (self.sm_speed.get(), self.sm_charge.get(), self.sm_precise.get(), self.sm_bg.get()),
             "dc_left": self.dc_left_tab.get(), "dc_mode": self.dc_mode.get(),
+            "shop_page": getattr(self, "shop_page", "wall"),
+            "shop_tool": self.shop_tool.get() if hasattr(self, "shop_tool") else "paint",
+            "shop_view": self.shop_view.get() if hasattr(self, "shop_view") else "flat",
+            "shop_part": getattr(self, "_shop_part", 2),
+            "status_filter": getattr(self, "_status_filter", None),
         }
         self._dc_tex_photos, self.dc_info = {}, None
-        for job in ("_v3_job", "_v3_tick", "_sm_job", "_dc_sharp", "_dc_upd", "_dc_flat_job"):
+        if getattr(self, "_sm_play", None):
+            self.sm_play_stop()
+        for job in ("_v3_job", "_v3_tick", "_sm_job", "_dc_sharp", "_dc_upd", "_dc_flat_job", "_sm_play_job", "_bt_job", "_tx_job"):
             j = getattr(self, job, None)
             if j:
                 try:
@@ -844,13 +968,15 @@ class LayoutsMixin:
             w.destroy()
         set_theme(SETTINGS.get("theme", "dark"))
         base.root.configure(bg=C["bg"])
-        if SETTINGS.get("layout") != "gallery":
+        if SETTINGS.get("layout") not in GAL_LAYOUTS:
             self.gal_pil = {}                   # card images are only needed in the Gallery layout
         self.row_imgs, self.sm_imgs = {}, {}
         self._style()
         self._build()
         sp, ch, pr, bg = self._keep["sm"]
         self.sm_speed.set(sp), self.sm_charge.set(ch), self.sm_precise.set(pr), self.sm_bg.set(bg)
+        if self.layout == "shop":
+            self._sms_backdrop(bg, render=False)
         titlebar(base.root, C["dark"])
         self._fit_path()
         self._fill_list()

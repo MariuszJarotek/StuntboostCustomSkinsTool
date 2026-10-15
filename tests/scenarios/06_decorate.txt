@@ -1,0 +1,23 @@
+# Advanced (Decorate) on the bench: add layers, mirror, duplicate, revert and undo.
+kids = [int(k) for k in app.tree.get_children()]
+app.select(kids[2]); app.shop_show("bench"); app.open_decorate()
+---
+assert app.dc is not None and not app.dc.layers
+app.dc_add_shape("star")
+---
+assert app.dc.sel is not None and app._dc_sel_box.winfo_ismapped()
+n = len(app.dc.layers)
+app.dc_duplicate()
+assert len(app.dc.layers) == n + 1
+app.dc_set_mirror("sides")
+assert app.dc.sel.mirror == "sides"
+---
+SHOT decorate_layers.png
+assert app.dc.dirty()
+app.dc_revert()
+---
+assert len(app.dc.layers) == 0 and not app.dc.dirty(), "revert drops the unsaved layers"
+app.dc_undo()
+---
+assert len(app.dc.layers) == 2, "undo brings them back"
+app.dc_revert()

@@ -1,0 +1,17 @@
+# Changing the filter in the title row swaps the fan (drawer animation) but never changes the deck on the
+# bench; a deck the filter hides stays in the fan as a "guest".
+kids = [int(k) for k in app.tree.get_children()]
+deck = kids[3]
+app.select(deck); app.shop_show("bench")
+---
+app._shop_filter_swap("mod")
+assert app._car_swap is not None, "the swap animation should run"
+---
+# the copy has no stock copies, so no deck counts as modified: the bench deck is now a guest
+assert app._status_filter == "mod" and app.sel == deck, (app._status_filter, app.sel)
+assert app._car_guest() and deck in app._car_shown(), "the bench deck stays in the fan as a guest"
+---
+SHOT filter_guest.png
+app._shop_filter_swap("all")
+---
+assert not app._car_guest() and app.sel == deck

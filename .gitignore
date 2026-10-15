@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.bak
+tests/shots/
+build/
+dist/
+*.spec
+_xnb_*

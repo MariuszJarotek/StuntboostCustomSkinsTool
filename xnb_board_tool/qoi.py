@@ -33,6 +33,10 @@ def _qoi_fast():
 
 
 def qoi_decode(b: bytes) -> Image.Image:
+    """Decodes a QOI image (the format STUNTBOOST stores its textures in) to an RGBA PIL image. Uses the fast `qoi`
+    package when it is installed and its result checks out, else the pure-Python decoder below. Raises XnbError
+    for data that is not QOI.
+    """
     if b[:4] != b"qoif":
         raise XnbError("QOI magic not found")
     fast = _qoi_fast()
@@ -104,6 +108,9 @@ def qoi_decode(b: bytes) -> Image.Image:
 
 
 def qoi_encode(img: Image.Image) -> bytes:
+    """Encodes an image as QOI (RGBA). Uses the fast `qoi` package when installed and only if its output decodes
+    back to the exact same pixels; otherwise the pure-Python encoder, which follows the QOI specification.
+    """
     img = img.convert("RGBA")
     w, h = img.size
     fast = _qoi_fast()

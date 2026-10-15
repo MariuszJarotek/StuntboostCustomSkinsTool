@@ -7,6 +7,7 @@ import time
 from PIL import Image, ImageTk
 
 from ..xnb import parse_xnb, read_str
+from ..i18n import _
 from ..boards import apply_palette
 from ..board3d import find_board_model, load_board_model, render_board
 from ..settings import C, _rgb
@@ -19,20 +20,23 @@ class Preview3DMixin:
 
     # ---------- 3D board preview ----------
     def v3_load_model(self):
+        """Loads the game's board model (Content/Models/Export/Board.xnb + Board.bin.xnb) for the 3D preview; on
+        failure leaves v3_model None and v3_err the reason to show.
+        """
         self.v3_model, self.v3_err = None, ""
         found = find_board_model(self.folder)
         if found is None:
-            self.v3_err = "Board model not found (Content\\Models\\Export\\Board.xnb + Board.bin.xnb)."
+            self.v3_err = _("Board model not found ({path}).", path="Content\\Models\\Export\\Board.xnb + Board.bin.xnb")
             return
         try:
             import numpy  # noqa: F401
         except ImportError:
-            self.v3_err = "The 3D preview needs numpy:  pip install numpy"
+            self.v3_err = _("The 3D preview needs numpy:  pip install numpy")
             return
         try:
             self.v3_model = load_board_model(*found)
         except Exception as e:
-            self.v3_err = f"Cannot read the board model: {e}"
+            self.v3_err = _("Cannot read the board model: {e}", e=e)
 
     def _v3_screws_default(self):
         """The game shows screws when Models/Resources/Board/Screws/<board>.xnb says something other than '0'."""
@@ -41,7 +45,7 @@ class Preview3DMixin:
         p = self.tex_path.parent / "Screws" / f"{self.boards[self.sel].name}.xnb"
         try:
             d = p.read_bytes()
-            s, _ = read_str(d, parse_xnb(d).content)
+            s, _rest = read_str(d, parse_xnb(d).content)
             return s.strip() != "0"
         except Exception:
             return False
@@ -74,21 +78,26 @@ class Preview3DMixin:
         return None
 
     def _v3_hover(self, e):
+        """Mouse over the 3D view: a hand cursor over a paintable part, and the part's name and colour in the
+        status bar.
+        """
         if self._v3_dragging:
             return
         k = self._v3_part_at(e.x, e.y)
         self.v3_canvas.config(cursor="hand2" if k is not None else "fleur")
         if k is not None and self.pal:
             from ..boards import PALETTE_SLOTS, to_hex
-            self.set_status(f"{PALETTE_SLOTS[k][1]}  {to_hex(self.pal[k])}  \u2014 click to change")
+            self.set_status(_("{part}  {color}  — click to change", part=_(PALETTE_SLOTS[k][1]), color=to_hex(self.pal[k])))
 
     def _v3_press(self, e):
+        """Mouse pressed on the 3D view: starts turning the board."""
         self._v3_down = (e.x, e.y)
         self._v3_last = (e.x, e.y, time.perf_counter())
         self._v3_vel = (0.0, 0.0)
         self._v3_dragging = True
 
     def _v3_drag(self, e):
+        """Mouse dragged: turns the board (yaw and pitch) and tracks the speed for the coast after release."""
         if not self._v3_last:
             return
         x0, y0, t0 = self._v3_last
@@ -104,6 +113,9 @@ class Preview3DMixin:
         self._v3_animate()
 
     def _v3_release(self, e=None):
+        """Mouse released: a click without movement on a part opens its colour picker; otherwise the board coasts
+        on (unless the mouse had stopped).
+        """
         self._v3_dragging = False
         down, self._v3_down = self._v3_down, None
         if e is not None and down and abs(e.x - down[0]) + abs(e.y - down[1]) <= 3:
@@ -119,10 +131,12 @@ class Preview3DMixin:
         self._v3_animate()
 
     def _v3_zoom(self, d):
+        """Mouse wheel: zooms in or out (0.5x-4x), animated."""
         self.v3_t_zoom = max(0.5, min(4.0, self.v3_t_zoom * (1.15 if d > 0 else 1 / 1.15)))
         self._v3_animate()
 
     def _v3_animate(self):
+        """Starts the animation loop (_v3_step) unless it is already running."""
         if self._v3_tick is None:
             self._v3_tick = base.root.after(0, self._v3_step)
 
@@ -160,6 +174,7 @@ class Preview3DMixin:
         self._v3_job = base.root.after(40, lambda: self._v3_start(False))
 
     def _v3_message(self, text):
+        """Shows a message in the 3D view instead of a board."""
         self._v3_info = None
         c = self.v3_canvas
         c.delete("all")
@@ -179,15 +194,18 @@ class Preview3DMixin:
         return self._v3_texarr
 
     def _v3_start(self, fast):
+        """Starts rendering a frame in a background thread (fast=True: a lower-resolution frame while moving).
+        Skips while another frame is being rendered and asks for a sharp frame afterwards.
+        """
         self._v3_job = None
         if self.tab_var.get() != "boards":
             return
         if self.v3_model is None:
-            self._v3_message(self.v3_err or "Open a content folder to see the board in 3D")
+            self._v3_message(self.v3_err or _("Open a content folder to see the board in 3D"))
             self.v3_note.config(text="")
             return
         if self.tex is None:
-            self._v3_message("Loading\u2026" if self._loading else "No board texture loaded")
+            self._v3_message(_("Loading…") if self._loading else _("No board texture loaded"))
             return
         if self._v3_busy:
             if not fast:
@@ -225,6 +243,8 @@ class Preview3DMixin:
         self._v3_pending_info = (info, (max(1, int(W * s))) / float(W), key, self.v3_model)
 
         def work():
+            """The background job: renders the board (CPU or GPU) and leaves the image or the error in _v3_result.
+            """
             try:
                 self._v3_result = render_board(*args, info=info)
             except Exception as e:
@@ -233,6 +253,9 @@ class Preview3DMixin:
         base.root.after(4, self._v3_poll)
 
     def _v3_poll(self):
+        """Waits for the background frame, adapts the moving resolution so a frame takes about 20 ms, keeps the
+        picking data of sharp frames and shows the result.
+        """
         if self._v3_result is None:
             base.root.after(4, self._v3_poll)
             return
@@ -243,7 +266,7 @@ class Preview3DMixin:
             ms = (time.perf_counter() - self._v3_t0) * 1000
             self._v3_scale = max(0.35, min(1.0, self._v3_scale * min(1.25, max(0.8, (20 / max(ms, 1)) ** 0.5))))
         if isinstance(res, Exception):
-            self._v3_message(f"3D preview failed: {res}")
+            self._v3_message(_("3D preview failed: {res}", res=res))
         else:
             info, scale, key, model = getattr(self, "_v3_pending_info", (None, 1.0, None, None))
             self._v3_info = info if info else None          # picking + recoloring use sharp frames only
@@ -254,6 +277,9 @@ class Preview3DMixin:
             self._v3_start(False)
 
     def _v3_display(self, res):
+        """Puts a rendered frame on the canvas (updating the existing image in place to avoid flicker) and updates
+        the note under the view.
+        """
         W, H = self._v3_size
         if res.size != (W, H):
             res = res.resize((W, H), Image.BILINEAR)
@@ -266,9 +292,9 @@ class Preview3DMixin:
             c.delete("all")
             self._v3_item = c.create_image(0, 0, anchor="nw", image=self._v3_photo)
         from .. import board3d
-        note = "Game's board model \u00b7 colors from the texture's first pixels"
+        note = _("Game's board model · colors from the texture's first pixels")
         if board3d.LAST_RENDERER == "gpu":
             note += " \u00b7 GPU"
         if self.pal and self._pal_changed():
-            note += " \u00b7 showing picked colors (not applied yet)"
+            note += " \u00b7 " + _("showing picked colors (not applied yet)")
         self.v3_note.config(text=note)
