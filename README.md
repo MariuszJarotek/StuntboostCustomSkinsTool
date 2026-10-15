@@ -9,6 +9,8 @@ game-ready `.xnb` for you. Every deck can go back to the original with one click
 
 ! Tool created with usage of Claude AI: Code and Translations !
 
+VirusTotal scan link - https://www.virustotal.com/gui/file/4e01c164e1638d4efd62473e45b83aa4ee3250b9f8f7414f24d9864e527f755d?nocache=1
+
 <img width="2559" height="1390" alt="StuntboostBoardTool" src="https://github.com/user-attachments/assets/ffd3212d-3e59-49de-b211-d3a685f5f0ea" />
 
 ---
