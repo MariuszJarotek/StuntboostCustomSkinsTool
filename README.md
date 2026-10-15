@@ -1,41 +1,34 @@
 # XNB Board Texture Tool
 
-A small desktop tool for swapping skateboard textures in **STUNTBOOST** (and other MonoGame / XNA games that store images in `.xnb` files).
+A desktop tool for making your own skateboards in **STUNTBOOST**: new artwork, board colours, stickers, text
+and effects, and a restyled speedometer. It also works with other MonoGame / XNA games that store images in
+`.xnb` files.
 
-Pick a board, drop in any PNG or JPG, choose the board's colors, and the tool writes a game-ready `.xnb` for you. Backups and one-click revert are built in.
-
-![Screenshot of the XNB Board Texture Tool](docs/screenshot.png)
+Pick a deck, drop in any PNG or JPG or decorate it with stickers, choose its colours, and the tool writes a
+game-ready `.xnb` for you. Every deck can go back to the original with one click.
 
 ---
 
 ## Features
 
-- **Board browser:** lists every board in the content folder with a mini preview and a status marker.
-  - 🟢 matches the saved default
-  - 🟧 modified
-  - ⭕ no default saved yet
-- **Replace by drag & drop or file picker:** accepts PNG, JPG, BMP, TGA, GIF and WEBP.
-- **Adjust before applying:** every new image opens an editor where you can drag to position it, zoom with the mouse wheel, choose **Fill / Fit / Stretch**, rotate (90° steps or any angle), flip, and pick a color or transparency for uncovered areas. A dimmed border shows what will be cut off. The result always has the original texture size, so the game gets exactly what it expects.
-- **Board colors:** pick the border, under, wheels and truck colors with a color picker, or type `#rrggbb` / `r,g,b`. The tool writes them into the texture for you. You can copy and paste a color set between boards, and the colors are kept when you replace the artwork.
-- **Languages:** English, Polski, Deutsch and Français. The tool starts in your Windows display language (when it has it) and you can switch in **Settings** at any time; the window changes right away.
-- **Layouts and themes:** choose **Skate shop** (every deck on a wall; one deck on the bench with its top and bottom side by side), **Studio** (big 3D view in the middle), **Gallery** (all boards as cards with their colors) or **Classic** in **Settings**, in a **Concrete**, **Dark** or **Light** theme.
-- **3D preview:** see the selected board on the game's own skateboard model. Drag to rotate, scroll to zoom, and use the Top, Bottom and Side views. Picked colors show up before you apply them, and screws appear on boards that have them in the game. Click the wheels, trucks, screws or border to change that color. It is drawn on the graphics card when one is available, so it stays sharp while you turn it.
-- **Decorate tab:** put stickers and images straight onto the 3D board as layers, on top of the board's art or a base texture (black, stripes, carbon, camo, flames…). Comes with a Starter pack of 24 stickers; make your own packs and share them as .zip files. Add text in any installed font and simple shapes (racing stripes, circles, stars, chevrons…), recolour stickers to match your board, mirror a sticker to the nose and tail or both sides, and let the tool suggest wheel, truck and border colours from the artwork. Add effects to stickers (shadow, white die-cut border, raised, worn, holographic) and a finish to the whole board (grip tape, matte grain, worn edges, faded, gloss). Layers, text and effects stay editable after saving.
-- **Thumbnails:** replace the thumbnail separately, or generate it from the board texture with one click.
-- **Speedmeter tab:** restyle the HUD speedometer. In the Skate shop layout it is a bench like the decks': a big **live in-game preview** with backdrop tags (Game / Dark / Checker) and the speed and charge sliders, and three tools hanging from the dock. **Parts** lists the five files (bar texture, bar beginning, block, CM/S and MM/S text) to view, replace, export or revert. **Bar texture** has two modes, as two big tabs: **Recolor mine** keeps your texture and gives it new colors (presets, From deck, shift hue / saturation / brightness, or three new colors by shade or along the bar), and **Make new** draws a new texture from a style (Solid, Gradient, Speed zones, Chevrons, Checker, Carbon, Rainbow, Deck art). **Text** makes new unit text (quick labels first, then any label; the fonts as cards with a sample in their own lettering, or a .ttf/.otf file; size, slant, letter spacing, weight, alignment); only the label changes, the numbers stay in cm/s. Changes stay on screen, the same as deck colors, until **Write to game** in the bar at the bottom (a .bak backup is kept; Revert to default brings the original back). Every slider in the app has ◀ ▶ arrows at its ends for fine steps (hold to repeat). **▶ Play run** (or Space) animates a run from 0 to the speed you set and back, with the charge blocks running ahead; it shows your unsaved changes too. In the other layouts the same tools open as cards under the preview (◐ Bar texture, Aa Text maker), each with its own Apply button.
-- **Defaults and revert:** snapshot the current images as "defaults" and restore them exactly at any time. A `.bak` backup is also made before a file is first overwritten.
-- **Export to PNG:** pull any board texture or thumbnail out of the game as a normal image.
-- **Fast:**
-  - Boards load in the background, so the window never freezes. The thumbnail shows right away, and the full texture follows a moment later.
-  - Recently opened boards stay in memory, and the next and previous boards are preloaded, so stepping through boards is instant.
-  - Gallery card images and board statuses are cached on disk, so large folders open instantly the second time.
-  - The 3D board is drawn on the graphics card (OpenGL 3.3, no extra install), at full resolution even while turning. Without a usable graphics card it is drawn by the processor, as before.
-  - Changing a color or switching boards recolors the 3D frame already on screen instead of rendering it again.
-  - Dragging a sticker in Decorate only redraws the area the sticker moved through, in both the 3D view and the flat texture, and only that part is sent to the screen. Both follow the mouse smoothly with little processor use.
-  - The Gallery draws only the cards you can see (and a few around them), so large folders switch to it quickly; the rest appear as you scroll.
-  - After saving a QOI texture (the format STUNTBOOST uses), the tool keeps the pixels it just wrote instead of reading the file back.
-  - Low memory use: stickers keep only the pixels they cover, boards you have stepped away from in Decorate keep just their unsaved design (the rest is rebuilt when you come back), very large images are reduced to what a board can show, and the Gallery keeps only the small on-screen pictures: card images are read back from the disk cache when needed. Recently opened textures are kept up to about 24 MB, not by count, so the worst case stays bounded.
-  - If the optional `qoi` package is installed, textures load and save many times faster. Saved files are checked to decode back to exactly the same pixels; otherwise the built-in encoder is used.
+- **The Wall:** every deck of the game hanging on rails in its own art, labelled **Stock**, **Custom** or
+  **No backup**, with filters and a search.
+- **New artwork:** drop in PNG, JPG, BMP, TGA, GIF or WEBP, then position, zoom, rotate and flip it in the
+  **Adjust image** window. The result always has the size the game expects.
+- **Board colours:** click a part of the deck (border, under, wheels, truck) and pick a colour, or take one
+  suggested from your artwork. Copy and paste a colour set between decks.
+- **Advanced:** stickers, images, text and shapes as layers on the 3D board, base textures (carbon, camo,
+  flames…), sticker effects (shadow, die-cut border, holographic…) and a finish for the whole deck (grip tape,
+  worn edges, gloss…). A Starter pack of 24 stickers is included; make your own packs and share them as .zip.
+- **Stock:** your deck next to the original, with every difference listed, and one click to put it back.
+- **Speedmeter:** restyle the HUD speedometer with a live in-game preview: recolour or redraw the bar texture
+  and make new unit text.
+- **3D preview** on the game's own skateboard model, drawn on the graphics card when there is one.
+- **Four languages** (English, Polski, Deutsch, Français), four layouts, four themes and three text sizes.
+- **Safe:** a `.bak` backup before the first change, stock copies to go back to, and files are written so a
+  crash can never leave half a file. Nothing is sent anywhere; the tool has no network code.
+- **Fast:** decks load in the background, the next and previous ones are preloaded, statuses and pictures are
+  cached on disk, and large folders open instantly the second time.
 
 ## Supported formats
 
@@ -104,96 +97,208 @@ To reduce antivirus false positives, the build compiles PyInstaller's launcher o
 
 The build also skips UPX compression and embeds version information (product name, version, description) in the exe. To release a new version, change `__version__` in `xnb_board_tool/__init__.py` (the build reads it from there); see CONTRIBUTING.md.
 
-## How to use
+## A tour of the tool
 
-1. **Open the content folder:** `Content\Models\Resources\Board` inside the game folder.
-2. **Save defaults first:** when you pick a folder whose boards have no defaults yet, the tool offers to save them. Click **Yes** (or click **Save all as defaults** later). This snapshots every original texture, so you can always go back.
-3. **Pick a board** from the list on the left. Use the filter box, the ‹ › buttons or Ctrl+←/→ to move between boards.
-4. **Replace the artwork:** drop an image onto the texture preview, or click **Replace image…**. In the **Adjust image** window, position and zoom the image, then click **Apply**.
-5. **Set the colors** in the **Board colors** section, then click **Apply colors to texture**.
-6. **Update the thumbnail:** click **Generate from texture** or replace it with your own image.
-7. **Start the game** and check your board.
+The tool opens in the **Skate shop** layout. The tour follows the order you will usually work in:
 
-Made a mistake? Click **Revert to default** on the texture or thumbnail.
+**The Wall → Bench: General → Advanced → Stock → Speedmeter: Parts → Bar texture → Text → Settings**
 
-### Settings: layout, theme and language
+Everything hangs from the line along the top of the window: the **Decks** and **Speedmeter** tabs on the left,
+and on the right the **game-folder chip** (e.g. *STUNTBOOST · 101 DECKS · 3 CUSTOM · 2 UNSAVED*) and
+**Settings**. Click the folder chip for the full path, **Change folder…**, **Copy path** and **Save all as stock**.
 
-Click **⚙ Settings** in the header to choose:
+### First start
 
-| Layout | What it looks like |
+1. The tool asks for the folder with the boards: `Content\Models\Resources\Board` inside the game folder,
+   for example `E:\SteamLibrary\steamapps\common\STUNTBOOST\Content\Models\Resources\Board`.
+   The speedometer and the 3D board model are found from there automatically.
+2. It offers to **save the current boards as stock**. Click **Yes**. This keeps a copy of every original deck,
+   so you can always go back. (You can also do it later with **Save all as stock** in the folder chip.)
+
+### 1. The Wall
+
+Every deck of the game hangs on rails, in its own art and border colour, with its number and a label:
+
+| Label | Meaning |
 |---|---|
-| **Skate shop** (default) | **The Bench's title row**: a tall **‹ Wall** bar on the left, the deck on the bench as a big tag hanging from the header's line (its number large, its status on a coloured stripe), the Wall's filters (All, Custom, Stock, No backup, with counts; what isn't written yet shows under them) and **the deck fan**. Choosing a filter lifts the whole fan out of sight and brings it back down holding only those decks; the deck on the bench never changes with a filter: when the filter leaves it out it stays in the fan as a guest (dashed outline) until you pick another deck. In the fan, every deck hangs from the header's line spread like a hand of cards from a point far above. The deck on the bench hangs right down with its number on it; the others show only their lower half (point at one and it comes down a little). Click a deck to put it on the bench, use the **‹ ›** bars on both sides, or scroll the mouse wheel over the fan. It turns the short way round, never ends (after the last deck comes the first again) and follows the Wall's filter. **The header** is a rod along the top of the window with everything hanging from it as tags: **Decks** and **Speedmeter** (the open one in the accent colour), the game-folder chip with live counts (e.g. *STUNTBOOST · 101 DECKS · 3 CUSTOM · 2 UNSAVED*; it opens a menu with the full path, **Change folder…**, **Copy path** and **Save all as stock**) and **Settings**. **The Wall:** every deck hangs upright on rails, in its own art and edge color, with its number and a **Stock / Custom / No backup** label. Point at a deck and it lifts off the rail, swings on its hook and gets an orange outline. Filter with the tags hanging from the header's line (All, Custom, Stock, No backup, each with its count) or type a deck number. Stock decks are labelled in green. The black **On the bench** bar at the bottom says what is not in the game yet (colors you haven't written, decks with unsaved stickers) and takes you there. Click a deck to put it on **the Bench:** the 3D board (or **Top & bottom**: both sides of the deck side by side, in the same shape), and a tool dock with **General** (Artwork, Paint and Thumbnail on one compact sheet), **Advanced** (stickers, layers, base textures and effects) and **Stock**. **Stock** fills the stage with your deck **now** next to its **stock**, top and bottom, a tag with the number of differences, chips listing them (e.g. *Border · was #d82020*, *The artwork differs from stock*) and **Show what changed**, which outlines the changed parts; on the right, **Put the whole deck back to stock** (texture and thumbnail with one question), **Only the texture**, **Only the thumbnail** and **Save as stock…**. Click any part of the deck to paint it, or pick a colour taken from your artwork; **Save board** at the bottom writes them into the texture. **← The Wall** or Esc goes back. **Advanced** in the tool dock turns the Bench into the decorating view right there, with no separate tab: the dock stays on top, so **General** or **Stock** takes you straight back, and unsaved stickers stay with their deck (the Bench shows them and says they are not written yet). Decorating follows the same look: the sticker library on the left, the deck standing upright next to the 3D board (drag, scale and rotate stickers on either), the layers and board colours on the right, and a black bar at the bottom with the base texture, what isn't saved yet, **Clear all** and **Write to game…**. **Settings** opens as a page of its own: picture cards for the layout, theme and text size, the language, the game folder and the 3D renderer; every change is used right away (Done or Esc closes it). Made for the **Concrete** theme. |
-| **Studio** | Board list on the left, a big 3D preview with the texture below it in the middle, and colors, thumbnail and defaults in an inspector on the right. |
-| **Gallery** | Every board as a card with its art and its 4 colors, so you can compare all boards at a glance. Click a card to edit it in the drawer on the right. Use **Per row** (Auto, 2–6) above the grid to choose how many cards fit in a row; the cards scale to fill it. Drag the divider between the cards and the drawer to resize the drawer. The drawer combines everything in one card: **Texture / Thumbnail** tabs share the preview (drop an image on it to replace whichever is shown), and the 4 board colors sit in one row below. Less common actions are in the **⋯** menus. |
-| **Classic** | The original layout: texture and 3D side by side, colors below, thumbnail and defaults at the bottom. |
+| **Stock** (green) | The deck is the same as its saved stock copy |
+| **Custom** | The deck was changed since its stock copy was saved |
+| **No backup** | No stock copy saved yet |
 
-**3D preview:** untick **Draw the 3D board on the graphics card (GPU)** to draw it with the processor instead. The window also shows which one is in use. The graphics driver needs some extra memory while it's loaded (how much depends on the driver), and unticking frees it after a restart.
+- The tags at the top filter the Wall: **All**, **Custom**, **Stock**, **No backup**, each with its count.
+- Type in **Filter boards…** to find a deck by its number.
+- Point at a deck and it lifts off the rail; **click it to put it on the Bench**.
+- The black **On the bench** bar at the bottom tells you what isn't in the game yet (colours not written,
+  decks with unsaved stickers) and takes you there.
 
-You can also pick a **Dark**, **Light**, **Concrete** or **Blueprint** theme. Concrete (warm concrete, ink black and an orange accent) is the look the Skate shop layout was designed for; Blueprint is its dark counterpart: navy drafting paper with a faint grid behind the Wall, light lines and an amber accent. The window rebuilds right away and keeps your folder, the selected board and any colors you haven't applied yet. Your choice is remembered for next time.
+### 2. The Bench: General
 
-**Text size:** **Compact**, **Balanced** (the default) or **Large**. Every text in the tool uses one of six sizes (page titles, section headings, tabs and tags, body text, hints, codes), and the setting changes all of them at once, in every layout and dialog. The window rebuilds right away, like a theme change.
+The deck you picked is now on the bench.
 
-**Language:** **Automatic** (the default) follows the Windows display language when the tool has it, and English otherwise. Or pick **English**, **Polski**, **Deutsch** or **Français**. The window switches right away, like a theme change; open windows and messages already shown stay in the old language. File and folder names (`_board_defaults`, sticker pack folders, the game's files) never change.
+**The title row**
+- **‹ Wall** (or Esc) goes back to the Wall.
+- The **deck tag** shows the deck's number and its status (Stock / Custom / No backup).
+- The filter tags work like on the Wall.
+- **The deck fan** on the right shows the other decks spread like a hand of cards. Click one to put it on the
+  bench, use the **‹ ›** bars at both sides, or scroll the mouse wheel over the fan. It never ends: after the
+  last deck comes the first. Changing the filter lifts the fan away and brings it back with only those decks;
+  the deck on the bench stays put (with a dashed outline if the filter doesn't include it).
 
-### Speedmeter
+**The stage** on the left shows the deck:
+- **3D**: the deck on the game's own skateboard model. Drag to turn it, scroll to zoom, use **3/4**, **Top**,
+  **Bottom** and **Side** for fixed views. **Screws** and **Outline** show or hide those.
+- **Top & bottom**: both sides of the deck, flat, side by side.
 
-Switch to the **Speedmeter** tab in the header. The files are found automatically in `Content\Textures\HUD\SpeedMeter`. While this tab is open, the folder bar at the top shows the speedmeter folder, and **Change…** (or Ctrl+O) picks a different speedmeter folder; on the **Boards** tab it shows and changes the board folder.
+In both views, **click a part of the deck** (border, under, wheels, truck) to paint it.
 
-| File | What it is |
-|---|---|
-| `Texture.xnb` | The color/pattern seen through the whole bar |
-| `BarBeginning.xnb` | First section of the bar, above the unit text |
-| `Block.xnb` | Repeated to make the bar longer |
-| `CMS.xnb` / `MMS.xnb` | Unit text (normal / precise mode) |
+**The General sheet** on the right has three sections:
+- **Artwork**: the deck's texture. **Replace image…** (or drop an image on it) opens the **Adjust image**
+  window: drag to position, scroll to zoom, choose **Fill / Fit / Stretch**, rotate, flip, and pick a colour
+  for any uncovered area, then **Apply**. **Export PNG…** saves the artwork as a normal image, and
+  **Open other .xnb…** opens any texture file. Tick **Keep these colors when replacing the texture image** to
+  keep the deck's colours when you put in new art.
+- **Paint**: the four board colours. Pick a part, then a colour (click the swatch or type `#rrggbb`). The
+  round swatches below are colours taken from your artwork. **Copy** / **Paste** move a colour set between
+  decks.
+- **Thumbnail**: the small picture the game shows in the board shop. **Generate from texture** makes it from
+  the artwork; **Replace…** and **Export PNG…** work as for the artwork.
 
-The preview at the top rebuilds the speedometer exactly the way the game draws it. Move the **Speed** slider to see the bar grow, the **Charge** slider for the black "potential speed" blocks, and tick **Precise** to switch between CM/S and MM/S. The digits are drawn with the game's own font (`Content\Fonts\SinkingShip\VeryBigItalicNumeric.xnb`, found automatically), with the same spacing tweaks the game applies.
+New colours stay on screen until you click **Save board** in the bar at the bottom; **Revert** drops them.
+
+### 3. Advanced
+
+Click **Advanced** under the title row to decorate the deck. The Bench turns into the decorating view;
+**General** or **Stock** takes you straight back, and unsaved work stays with its deck while you look at
+others.
+
+**Left: Stickers | Textures | Effects** (the **«** button folds the panel away; drag its edge to resize it)
+- **Stickers**: your sticker packs and their stickers. Drag a sticker onto the deck, or click it to add it in
+  the middle. **+ New** makes a pack and **Add…** (or dropping images) fills it. The **⋯** menu next to
+  **+ New** renames, deletes, exports or imports packs; export a pack as a **.zip** to share it, and import
+  (or drop) someone else's .zip. Right-click a sticker to move it to another pack or remove it. Each pack is a
+  folder in `stickers` next to the tool; the **Starter** pack of 24 stickers is added the first time.
+- **Textures**: a base under your stickers: the board's own art, or Black, Black stripes, Carbon, Checker,
+  Blueprint grid, Sunset, Hazard, Camo, Grain, Flames or Maple wood. **Tint** recolours it. **Add…** adds your
+  own images (kept in `textures` next to the tool).
+- **Effects** (0–100 %, shown live):
+  - **Board finish** for the whole deck: **Grip tape**, **Matte grain**, **Worn edges** (the maple wood shows
+    through at the nose and tail), **Faded** and **Gloss**.
+  - **Selected sticker**: **Shadow**, **White border** (die-cut vinyl), **Raised**, **Worn** and
+    **Holographic**.
+  - **Sticker colour**: **Hue**, **Saturation** and **Tint**, to make stickers match your deck.
+
+**Middle: the deck**, flat and in 3D side by side. Stickers can be moved on either.
+- **Place stickers**: click a sticker to select it and drag to move it; it follows the deck's surface. Mouse
+  wheel scales it, Shift+wheel rotates it. Right-drag turns the board.
+- **View / colors**: dragging always turns the board.
+- Clicking the wheels, trucks, screws or border changes that colour.
+
+**Right: Layers and Board colors**
+- **+ Image**, **+ Text** and **+ Shape** add a layer. Text uses any font installed on your PC, with colour,
+  outline and a live preview. Shapes: racing stripes, center stripe, circle, ring, star, triangle, diamond,
+  chevron and rounded bar.
+- Select a layer to get its tools: **Fill** / **Fit**, **Rotate 90°**, **Flip**, **Duplicate**, **Delete**,
+  **Order** (up / down), **Mirror** (a copy at the nose and tail, or on both sides; drag either and both
+  move), **Opacity**, and **Edit…** for text and shapes.
+- **Board colors → Suggest…** offers colour sets picked from your design.
+- **Undo** / **Redo** sit in the title row (Ctrl+Z / Ctrl+Y) and cover every change.
+
+**The bar at the bottom** shows the base texture and what isn't saved yet, with **Clear all**, **Revert** and
+**Save board…**. Saving asks:
+- **Override selected board**, or **Save to another board** (STUNTBOOST has a fixed set of boards, 0–100, so
+  a design replaces a board rather than adding one).
+- **Also update the thumbnail**.
+- **Keep layers editable after saving**: the stickers stay separate and movable the next time you open the
+  deck in Advanced (stored in `_board_defaults\decor\`).
+
+Effects are painted into the texture, so the game shows them too.
+
+### 4. Stock
+
+Click **Stock** to compare the deck with its saved stock copy.
+
+- The stage shows **Now** (what the game shows) next to **Stock**, top and bottom. A tag counts the
+  differences and lists them (e.g. *Border · was #d82020*, *The artwork differs from stock*).
+  **Show what changed** outlines the changed parts.
+- On the right: when the stock was saved and how it is stored, then
+  **Put the whole deck back to stock** (texture and thumbnail), **Only the texture** or **Only the thumbnail**.
+- **Make this the new stock → Save as stock…** keeps the deck as it is now as the version you go back to.
+
+### 5. Speedmeter: Parts
+
+Click **Speedmeter** in the header. The files are found in `Content\Textures\HUD\SpeedMeter`.
+
+The big **in-game preview** draws the speedometer exactly the way the game does. Under it:
+- **Speed** and **Charge** sliders (the charge is the black blocks of potential speed ahead of the bar), and
+  **Precise (MM/S)** to switch the unit.
+- **▶ Play run** (or Space) plays a run from 0 to your speed and back.
+- **Game / Dark / Checker** above the preview change its backdrop.
+
+**Parts** lists the five files the speedometer is made of:
+
+| Part | File | What it is |
+|---|---|---|
+| Bar texture | `Texture.xnb` | The colour/pattern seen through the whole bar |
+| Bar beginning | `BarBeginning.xnb` | The first section of the bar, above the unit text |
+| Block | `Block.xnb` | Repeated to make the bar longer |
+| CM/S text | `CMS.xnb` | The unit text (normal mode) |
+| MM/S text | `MMS.xnb` | The unit text (precise mode) |
+
+Pick one to see it, then **Replace image…**, **Export PNG…** or **Revert to default**.
 
 How the game uses the bar texture (good to know when designing one):
-- It's mapped to the **screen**, not to each block. The blocks are windows onto one long strip.
+- It's mapped to the **screen**, not to each block: the blocks are windows onto one long strip.
 - Only the **lower rows** (about 68–154) are reached, and past the texture's edges it is **mirrored**.
-- It **scrolls left** as speed increases (0.3 px per bar pixel, up to 930 px). The left part shows at low speeds; the middle and right appear as the bar fills.
+- It **scrolls left** as the speed rises (0.3 px per bar pixel, up to 930 px), so the left part shows at low
+  speeds and the middle and right as the bar fills. The highlighted box shows what is visible at the current
+  speed.
 
-When the bar texture is selected, the highlighted box shows which part is visible at the current speed.
+### 6. Bar texture
 
-### Decorate
+Two ways to get a new bar texture, as two big tabs:
+- **Recolor mine** keeps your texture's light, shade and details and gives it new colours: presets
+  (**Original**, **Fire**, **Ice**, **Toxic**, **Gold**, **Violet**, **Mono**, **Sunset**, **Neon**,
+  **From deck**), then **Shift colors** (Hue, Saturation, Brightness) or **New colors** (three colours by shade
+  or along the bar).
+- **Make new** draws a new texture from a style: **Solid**, **Gradient**, **Speed zones**, **Chevrons**,
+  **Checker**, **Carbon**, **Rainbow** or **Deck art**, with its colours (or **Colors from deck**), where the
+  last colour is reached, and **Shine** for a round, lit look.
 
-Click **Decorate** in the header (or **Decorate…** on the 3D preview) to decorate the selected board directly on the 3D model. Use ‹ › to move between boards; unsaved work stays with each board until you save it or close the tool.
+**Before** and **After** show the texture; **Save as PNG…** saves the result as an image.
 
-**Left panel: Stickers | Textures | Effects**
-- **Stickers:** your sticker packs are listed at the top. Each pack is a folder inside the `stickers` folder next to the tool, and a **Starter** pack of 24 original stickers is added the first time.
-  - Drag a sticker onto the 3D board (or the flat texture below it) to place it there, or click it to add it in the middle.
-  - **+ New** creates a pack. The **⋯** menu (or right-clicking a pack) renames, deletes, exports or imports packs.
-  - **Export pack as .zip** makes a file you can share. **Import pack from .zip** (or dropping a .zip on the panel) adds someone else's pack. Only images are taken from the zip, re-saved as PNG, so nothing else in the file is used.
-  - **Add…** or dropping images adds them to the selected pack (to **My stickers** when **All stickers** is shown). Right-click a sticker to move it to another pack or remove it.
-- **Effects:** sliders from 0 to 100 %, previewed live on the 3D board.
-  - **Board finish** goes over the whole board: **Grip tape** (sandpaper grain), **Matte grain**, **Worn edges** (the grip tape wears off from the outline, most at the nose and tail, and shows the bare maple wood underneath), **Faded** (sun-bleached) and **Gloss** (highlight streaks).
-  - **Selected sticker:** **Shadow**, **White border** (a die-cut vinyl edge), **Raised** (embossed), **Worn** (scuffed and peeling) and **Holographic** (rainbow foil). **Remove** clears the selected sticker's effects. Duplicating a sticker keeps its effects.
-  - **Sticker colour:** **Hue** turns the sticker's colours around the colour wheel, **Saturation** makes it more or less colourful (0 % is black and white), and **Tint** colours it with one colour (click the swatch to pick it; it starts as your wheel colour). Use it to make Starter stickers match your board. **Reset** puts the original colours back.
-  - Effects are painted into the texture, so the game shows them too. They look the same from every angle and don't react to light, because the game uses only the board's color texture.
-- **Textures:** click a base texture to put it under your stickers: the board's own art, or Black, Black stripes, Carbon, Checker, Blueprint grid, Sunset, Hazard, Camo, Grain, Flames or Maple wood. **Tint** recolors the base. **Add…** puts your own images in the `textures` folder.
+### 7. Text
 
-**Center: the board**
-- **Place stickers** mode: click a sticker on the board to select it, then drag to move it. It follows the cursor on the deck's surface. The mouse wheel scales it around the cursor and Shift+wheel rotates it. Dragging an empty part of the deck rotates the board.
-- **View / colors** mode: dragging always rotates the board.
-- In both modes, clicking the wheels, trucks, screws or border changes that color. The colors are the same ones as in the Boards tab.
-- Below the 3D view is the flat texture. The dimmed area doesn't show on the top of the deck, and each layer is outlined.
-- Images from disk: **Image…**, or drop files on the board (needs `tkinterdnd2`). Wide, board-shaped images cover the whole deck; other images become stickers where you drop them.
-- **Text…** adds a text layer: type one or more lines, pick a font (the fonts installed on your PC), a colour and an outline, with a live preview. Double-click the layer or use **Edit text…** to change it later, even after saving with editable layers.
-- **Shape ▾** adds a shape in your wheel colour: **Racing stripes** and **Center stripe** run along the whole deck; **Circle**, **Ring**, **Star**, **Triangle**, **Diamond**, **Chevron** and **Rounded bar** are placed like stickers. **Edit colour…** (or double-click) changes the colour, and the Effects tab works on them too.
+The **Text maker** makes new unit text for under the bar:
+- **Quick text**: **SPEED**, **KM/H**, **MPH**, **BOOST**, **GO!** or **Original**, or type your own for
+  **Normal (CM/S)** and **Precise (MM/S)**.
+- **Font**: the fonts as cards with a sample in their own lettering, or **Font file…** for a .ttf / .otf.
+- **Size**, **Slant**, **Letter spacing**, **Weight** and **Align**.
 
-**Right panel: layers, colors, save**
-- **Layers:** reorder (Up / Down), show or hide, duplicate, delete and set the opacity. Fill / Fit / Rotate 90° / Flip work on the selected layer.
-- **Mirror ▾** puts a copy of the selected layer at the other end (**Nose & tail**: turned around, like the board itself) or on the other side (**Both sides**). Drag either copy and both move together, symmetrically. Duplicating keeps the mirror.
-- **Board colors → Suggest…** picks colour sets from the artwork on the deck (the main colour, the darkest and lightest, and the most vivid accents) for the border, under, wheels and truck. Click a set to use it; Ctrl+Z goes back.
-- **Undo / Redo** (Ctrl+Z / Ctrl+Y) cover every change, including the base texture and colors.
-- **Save decorations…** opens a window with two choices:
-  - **Override selected board** writes the design into that board.
-  - **Save to another board** keeps the selected board as it is and writes the design into a board you pick. STUNTBOOST loads a fixed set of boards (0–100), so the design replaces that board rather than adding a new one.
-  - **Also update the thumbnail** makes the board's thumbnail from the new design.
-  - **Keep layers editable after saving** stores the base and layers in `_board_defaults\decor\`. Next time you open Decorate on that board, the stickers are still separate and movable, and text and shapes can still be edited. If the texture was changed in another way since, the stored layers are ignored.
-- Saving works like everywhere else in the tool: it offers to save a default first, keeps a `.bak` backup, and **Revert** still brings the original back.
+Only the label changes; the numbers stay in cm/s (mm/s in precise mode).
 
-### Board colors
+Changes to the bar texture and the text stay on screen (the preview shows them) until you click
+**Write to game** in the bar at the bottom; **Reset** drops them. A `.bak` backup is kept, and
+**Revert to default** in Parts brings the original back. Every slider has ◀ ▶ arrows at its ends for fine
+steps.
+
+### 8. Settings
+
+Click **Settings** in the header. Every change is used right away; **Done** or Esc closes the page.
+
+- **Layout**: **Skate shop** (this tour), **Studio** (big 3D view in the middle, board list on the left),
+  **Gallery** (every board as a card with its 4 colours) or **Classic** (texture and 3D side by side). The other
+  layouts have the same tools; Advanced is called **Decorate** there.
+- **Theme**: **Dark**, **Light**, **Concrete** (warm concrete, ink black and orange, made for the Skate shop)
+  or **Blueprint** (its dark counterpart: navy drafting paper and amber).
+- **Language**: **Automatic** follows the Windows display language, or pick **English**, **Polski**,
+  **Deutsch** or **Français**.
+- **Text size**: **Compact**, **Balanced** or **Large**, for every text in the tool.
+- **Game folder**: where the boards are, how many decks were found, and **Change folder…**.
+- **3D preview**: untick **Draw the 3D board on the graphics card (GPU)** if the 3D view looks wrong or the
+  tool closes when it appears; the processor then draws it.
+- **Credits**: who made the tool.
+
+## Board colors
 
 The first four pixels of the texture's top row hold the board's colors:
 
@@ -206,16 +311,19 @@ The first four pixels of the texture's top row hold the board's colors:
 
 The tool edits these pixels for you, so you don't need an image editor. Copy produces text like `#d02020, #c8b400, #40c060, #4050c0` that you can share with other players. Paste reads it back.
 
-### Keyboard shortcuts
+## Keyboard shortcuts
 
 | Keys | Action |
 |---|---|
 | Ctrl+O | Change the folder for the open tab (boards or speedmeter) |
-| Ctrl+← / Ctrl+→ | Previous / next board |
+| Ctrl+← / Ctrl+→ | Previous / next deck |
+| Mouse wheel over the deck fan | Previous / next deck |
+| Esc | Back from the Bench to the Wall; closes Settings |
 | Enter (in the filter box) | Jump to the first matching board |
 | Esc (in the filter box) | Clear the filter |
+| Space (Speedmeter) | Play / stop a run |
 
-In the **Decorate** tab:
+In **Advanced**:
 
 | Keys / mouse | Action |
 |---|---|
@@ -225,7 +333,7 @@ In the **Decorate** tab:
 | Click a wheel, truck, screw or the border | Change that color |
 | R / F | Rotate 90° / flip the selected sticker |
 | Delete, Ctrl+D | Delete / duplicate the selected sticker |
-| Double-click a text or shape layer in the Layers list | Edit its text / colour |
+| Double-click a text or shape layer | Edit its text / colour |
 | Page Up / Page Down | Move the selected layer up / down |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
 | Esc | Deselect |
@@ -330,7 +438,7 @@ xnb_board_tool/
     speedmeter_tab.py       Speedmeter tab
     speed_shop.py           Speedmeter bench of the Skate shop layout
     speed_tools.py          speedometer bar texture and text makers
-    decorate.py             Decorate (Advanced) and the Save decorations window
+    decorate.py             Advanced (Decorate in the other layouts) and the Save decorations window
     app.py                  main window: state, loading, file actions
 ```
 
