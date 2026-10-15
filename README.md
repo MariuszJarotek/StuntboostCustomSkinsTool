@@ -7,6 +7,10 @@ and effects, and a restyled speedometer. It also works with other MonoGame / XNA
 Pick a deck, drop in any PNG or JPG or decorate it with stickers, choose its colours, and the tool writes a
 game-ready `.xnb` for you. Every deck can go back to the original with one click.
 
+! Tool created with usage of Claude AI: Code and Translations !
+
+<img width="2559" height="1390" alt="StuntboostBoardTool" src="https://github.com/user-attachments/assets/ffd3212d-3e59-49de-b211-d3a685f5f0ea" />
+
 ---
 
 ## Features
@@ -119,6 +123,8 @@ and on the right the **game-folder chip** (e.g. *STUNTBOOST · 101 DECKS · 3 CU
 
 Every deck of the game hangs on rails, in its own art and border colour, with its number and a label:
 
+<img width="2559" height="1394" alt="MainWindow" src="https://github.com/user-attachments/assets/fbccd1c9-0e91-4f15-b8a2-1a6590c37a43" />
+
 | Label | Meaning |
 |---|---|
 | **Stock** (green) | The deck is the same as its saved stock copy |
@@ -134,6 +140,8 @@ Every deck of the game hangs on rails, in its own art and border colour, with it
 ### 2. The Bench: General
 
 The deck you picked is now on the bench.
+
+<img width="2559" height="1390" alt="The Bench General" src="https://github.com/user-attachments/assets/433c5cc5-1bd1-49c7-a294-75bc2fc4f304" />
 
 **The title row**
 - **‹ Wall** (or Esc) goes back to the Wall.
@@ -170,6 +178,8 @@ New colours stay on screen until you click **Save board** in the bar at the bott
 Click **Advanced** under the title row to decorate the deck. The Bench turns into the decorating view;
 **General** or **Stock** takes you straight back, and unsaved work stays with its deck while you look at
 others.
+
+<img width="2559" height="1391" alt="The Bench Advanced" src="https://github.com/user-attachments/assets/d7534c93-6b1d-40ab-a4d7-49c0b986f104" />
 
 **Left: Stickers | Textures | Effects** (the **«** button folds the panel away; drag its edge to resize it)
 - **Stickers**: your sticker packs and their stickers. Drag a sticker onto the deck, or click it to add it in
@@ -217,6 +227,8 @@ Effects are painted into the texture, so the game shows them too.
 
 Click **Stock** to compare the deck with its saved stock copy.
 
+<img width="2557" height="1390" alt="The Bench Stock" src="https://github.com/user-attachments/assets/1cfa38b7-5ea1-43b9-b753-cec768148b84" />
+
 - The stage shows **Now** (what the game shows) next to **Stock**, top and bottom. A tag counts the
   differences and lists them (e.g. *Border · was #d82020*, *The artwork differs from stock*).
   **Show what changed** outlines the changed parts.
@@ -227,6 +239,8 @@ Click **Stock** to compare the deck with its saved stock copy.
 ### 5. Speedmeter: Parts
 
 Click **Speedmeter** in the header. The files are found in `Content\Textures\HUD\SpeedMeter`.
+
+<img width="2559" height="1390" alt="Speedmeter Parts" src="https://github.com/user-attachments/assets/c8bcdded-4440-4fdc-872c-22a344bc5964" />
 
 The big **in-game preview** draws the speedometer exactly the way the game does. Under it:
 - **Speed** and **Charge** sliders (the charge is the black blocks of potential speed ahead of the bar), and
@@ -255,6 +269,8 @@ How the game uses the bar texture (good to know when designing one):
 
 ### 6. Bar texture
 
+<img width="2559" height="1391" alt="Speedmeter Bar Texture" src="https://github.com/user-attachments/assets/ac6ce24e-9613-4aa8-b5c3-1820cd4739f8" />
+
 Two ways to get a new bar texture, as two big tabs:
 - **Recolor mine** keeps your texture's light, shade and details and gives it new colours: presets
   (**Original**, **Fire**, **Ice**, **Toxic**, **Gold**, **Violet**, **Mono**, **Sunset**, **Neon**,
@@ -267,6 +283,8 @@ Two ways to get a new bar texture, as two big tabs:
 **Before** and **After** show the texture; **Save as PNG…** saves the result as an image.
 
 ### 7. Text
+
+<img width="2559" height="1391" alt="Speedmeter Text" src="https://github.com/user-attachments/assets/9d51e1d1-4c28-4bcb-8080-4c52db14a2bf" />
 
 The **Text maker** makes new unit text for under the bar:
 - **Quick text**: **SPEED**, **KM/H**, **MPH**, **BOOST**, **GO!** or **Original**, or type your own for
@@ -284,6 +302,9 @@ steps.
 ### 8. Settings
 
 Click **Settings** in the header. Every change is used right away; **Done** or Esc closes the page.
+
+<img width="2559" height="1391" alt="Settings" src="https://github.com/user-attachments/assets/7ed16cc8-d7f2-404e-ab86-2c951c7c82ed" />
+
 
 - **Layout**: **Skate shop** (this tour), **Studio** (big 3D view in the middle, board list on the left),
   **Gallery** (every board as a card with its 4 colours) or **Classic** (texture and 3D side by side). The other
@@ -476,4 +497,4 @@ This is a fan-made modding tool and is not affiliated with the developers of STU
 ## License
 
 <!-- Choose a license, e.g. MIT: https://choosealicense.com/licenses/mit/ -->
-TBD
+GNU General Public License
